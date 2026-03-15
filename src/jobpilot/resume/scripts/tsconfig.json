@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "baseUrl": ".",
+    "paths": {
+      "@htmldocs/react": ["../../../../node_modules/@htmldocs/react"],
+      "@htmldocs/render": ["../../../../node_modules/@htmldocs/render"]
+    }
+  },
+  "include": ["templates/**/*"],
+  "exclude": ["node_modules"]
+}

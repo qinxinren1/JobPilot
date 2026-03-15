@@ -1,193 +1,247 @@
-<!-- logo here -->
+# JobPilot
 
-# ApplyPilot
+**Fully autonomous job application pipeline. Discover, score, tailor, and apply — all automated.**
 
-**Applied to 1,000 jobs in 2 days. Fully autonomous. Open source.**
-
-[![PyPI version](https://img.shields.io/pypi/v/applypilot?color=blue)](https://pypi.org/project/applypilot/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-green.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/Pickle-Pixel/ApplyPilot?style=social)](https://github.com/Pickle-Pixel/ApplyPilot)
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/S6S01UL5IO)
-
-
-
-
-https://github.com/user-attachments/assets/7ee3417f-43d4-4245-9952-35df1e77f2df
-
 
 ---
 
-## What It Does
+## Overview
 
-ApplyPilot is a 6-stage autonomous job application pipeline. It discovers jobs across 5+ boards, scores them against your resume with AI, tailors your resume per job, writes cover letters, and **submits applications for you**. It navigates forms, uploads documents, answers screening questions, all hands-free.
+JobPilot is an end-to-end autonomous job application system that discovers jobs, scores them with AI, tailors your resume per job, generates personalized cover letters, and submits applications automatically. It handles form navigation, document uploads, screening questions, and CAPTCHA solving — completely hands-free.
 
-Three commands. That's it.
+## Quick Start
 
 ```bash
-pip install applypilot
+# Installation
+pip install jobpilot
 pip install --no-deps python-jobspy && pip install pydantic tls-client requests markdownify regex
-applypilot init          # one-time setup: resume, profile, preferences, API keys
-applypilot doctor        # verify your setup — shows what's installed and what's missing
-applypilot run           # discover > enrich > score > tailor > cover letters
-applypilot run -w 4      # same but parallel (4 threads for discovery/enrichment)
-applypilot apply         # autonomous browser-driven submission
-applypilot apply -w 3    # parallel apply (3 Chrome instances)
-applypilot apply --dry-run  # fill forms without submitting
+
+# One-time setup
+jobpilot init          # Configure profile, resume, API keys
+
+# Verify setup
+jobpilot doctor        # Check what's installed and what's missing
+
+# Run the pipeline
+jobpilot run           # discover > enrich > score > tailor > cover > pdf
+jobpilot run -w 4     # Parallel mode (4 threads)
+
+# Auto-apply
+jobpilot apply         # Autonomous form submission
+jobpilot apply -w 3    # Parallel apply (3 browser instances)
+jobpilot apply --dry-run  # Test without submitting
 ```
 
-> **Why two install commands?** `python-jobspy` pins an exact numpy version in its metadata that conflicts with pip's resolver, but works fine at runtime with any modern numpy. The `--no-deps` flag bypasses the resolver; the second command installs jobspy's actual runtime dependencies. Everything except `python-jobspy` installs normally.
-
----
-
-## Two Paths
-
-### Full Pipeline (recommended)
-**Requires:** Python 3.11+, Node.js (for npx), Gemini API key (free), Claude Code CLI, Chrome
-
-Runs all 6 stages, from job discovery to autonomous application submission. This is the full power of ApplyPilot.
-
-### Discovery + Tailoring Only
-**Requires:** Python 3.11+, Gemini API key (free)
-
-Runs stages 1-5: discovers jobs, scores them, tailors your resume, generates cover letters. You submit applications manually with the AI-prepared materials.
+> **Note:** `python-jobspy` requires separate installation with `--no-deps` due to dependency resolver conflicts, but works fine at runtime.
 
 ---
 
 ## The Pipeline
 
-| Stage | What Happens |
-|-------|-------------|
-| **1. Discover** | Scrapes 5 job boards (Indeed, LinkedIn, Glassdoor, ZipRecruiter, Google Jobs) + 48 Workday employer portals + 30 direct career sites |
-| **2. Enrich** | Fetches full job descriptions via JSON-LD, CSS selectors, or AI-powered extraction |
-| **3. Score** | AI rates every job 1-10 based on your resume and preferences. Only high-fit jobs proceed |
-| **4. Tailor** | AI rewrites your resume per job: reorganizes, emphasizes relevant experience, adds keywords. Never fabricates |
-| **5. Cover Letter** | AI generates a targeted cover letter per job |
-| **6. Auto-Apply** | Claude Code navigates application forms, fills fields, uploads documents, answers questions, and submits |
+JobPilot runs 6 stages in sequence:
 
-Each stage is independent. Run them all or pick what you need.
+| Stage | Description |
+|-------|-------------|
+| **1. Discover** | Scrapes job boards (Indeed, LinkedIn, Glassdoor, ZipRecruiter, Google Jobs), Workday portals, and direct career sites |
+| **2. Enrich** | Fetches full job descriptions using JSON-LD, CSS selectors, or AI extraction |
+| **3. Score** | AI rates each job 1-10 based on your resume and preferences. Only high-fit jobs proceed |
+| **4. Tailor** | AI rewrites your resume per job: reorganizes sections, emphasizes relevant experience, adds keywords. Never fabricates |
+| **5. Cover** | Generates personalized cover letters from base templates, customized with company and role-specific details |
+| **6. PDF** | Converts tailored resumes and cover letters to PDF format |
+
+### Auto-Apply (Stage 7)
+
+The `apply` command runs separately and handles autonomous form submission:
+- Navigates application forms
+- Fills personal information and work history
+- Uploads tailored resume and cover letter (TXT or PDF based on form requirements)
+- Answers screening questions
+- Solves CAPTCHAs (with CapSolver integration)
+- Submits applications
 
 ---
 
-## ApplyPilot vs The Alternatives
+## Cover Letter Generation
 
-| Feature | ApplyPilot | AIHawk | Manual |
-|---------|-----------|--------|--------|
-| Job discovery | 5 boards + Workday + direct sites | LinkedIn only | One board at a time |
-| AI scoring | 1-10 fit score per job | Basic filtering | Your gut feeling |
-| Resume tailoring | Per-job AI rewrite | Template-based | Hours per application |
-| Auto-apply | Full form navigation + submission | LinkedIn Easy Apply only | Click, type, repeat |
-| Supported sites | Indeed, LinkedIn, Glassdoor, ZipRecruiter, Google Jobs, 46 Workday portals, 28 direct sites | LinkedIn | Whatever you open |
-| License | AGPL-3.0 | MIT | N/A |
+JobPilot uses a **base template + LLM customization** approach:
+
+1. **Template Lookup**: Finds base cover letter templates in `~/.jobpilot/base_cover_letters/`:
+   - `{name}_{category}.txt` (personalized template)
+   - `{category}.txt` (category-specific template)
+   - Any `.txt` file (fallback generic template)
+
+2. **LLM Customization**: Uses AI to customize the base template by:
+   - Replacing placeholders (`{company}`, `{position}`, etc.)
+   - Adding company-specific information from the job description
+   - Explaining why you're interested in this specific company and role
+   - Referencing specific products, services, or technologies mentioned in the posting
+
+3. **Output**: Generates both TXT and PDF versions:
+   - TXT: Plain text for pasting into text fields
+   - PDF: Formatted document with contact information for file uploads
+
+The system automatically detects whether an application form requires text input or file upload and uses the appropriate format.
 
 ---
 
 ## Requirements
 
-| Component | Required For | Details |
-|-----------|-------------|---------|
-| Python 3.11+ | Everything | Core runtime |
-| Node.js 18+ | Auto-apply | Needed for `npx` to run Playwright MCP server |
-| Gemini API key | Scoring, tailoring, cover letters | Free tier (15 RPM / 1M tokens/day) is enough |
-| Chrome/Chromium | Auto-apply | Auto-detected on most systems |
-| Claude Code CLI | Auto-apply | Install from [claude.ai/code](https://claude.ai/code) |
+### Core (All Features)
+- **Python 3.11+**
+- **Gemini API key** (free at [aistudio.google.com](https://aistudio.google.com)) or OpenAI API key
+- **Chrome/Chromium** (auto-detected)
 
-**Gemini API key is free.** Get one at [aistudio.google.com](https://aistudio.google.com). OpenAI and local models (Ollama/llama.cpp) are also supported.
+### Auto-Apply Only
+- **Node.js 18+** (for Playwright MCP server)
+- **Claude Code CLI** (install from [claude.ai/code](https://claude.ai/code))
 
 ### Optional
-
-| Component | What It Does |
-|-----------|-------------|
-| CapSolver API key | Solves CAPTCHAs during auto-apply (hCaptcha, reCAPTCHA, Turnstile, FunCaptcha). Without it, CAPTCHA-blocked applications just fail gracefully |
-
-> **Note:** python-jobspy is installed separately with `--no-deps` because it pins an exact numpy version in its metadata that conflicts with pip's resolver. It works fine with modern numpy at runtime.
+- **CapSolver API key** (for automated CAPTCHA solving: hCaptcha, reCAPTCHA, Turnstile, FunCaptcha)
 
 ---
 
 ## Configuration
 
-All generated by `applypilot init`:
+All configuration is generated by `jobpilot init`:
 
 ### `profile.json`
-Your personal data in one structured file: contact info, work authorization, compensation, experience, skills, resume facts (preserved during tailoring), and EEO defaults. Powers scoring, tailoring, and form auto-fill.
+Your personal data: contact info, work authorization, compensation expectations, experience, skills, and EEO defaults. Powers scoring, tailoring, and form auto-fill.
 
 ### `searches.yaml`
-Job search queries, target titles, locations, boards. Run multiple searches with different parameters.
+Job search queries, target titles, locations, and job boards. Run multiple searches with different parameters.
 
 ### `.env`
-API keys and runtime config: `GEMINI_API_KEY`, `LLM_MODEL`, `CAPSOLVER_API_KEY` (optional).
+API keys and runtime config:
+- `GEMINI_API_KEY` (recommended, free tier sufficient)
+- `OPENAI_API_KEY` (alternative)
+- `LLM_URL` (for local models like Ollama)
+- `CAPSOLVER_API_KEY` (optional, for CAPTCHA solving)
 
-### Package configs (shipped with ApplyPilot)
-- `config/employers.yaml` - Workday employer registry (48 preconfigured)
-- `config/sites.yaml` - Direct career sites (30+), blocked sites, base URLs, manual ATS domains
-- `config/searches.example.yaml` - Example search configuration
+### Base Cover Letters
+Store your base cover letter templates in `~/.jobpilot/base_cover_letters/`:
+- `{name}_{category}.txt` - Personalized templates (e.g., `John_Doe_software_engineer.txt`)
+- `{category}.txt` - Category-specific templates (e.g., `software_engineer.txt`)
+- Any `.txt` file - Generic fallback template
+
+The system automatically finds and customizes the best matching template for each job.
 
 ---
 
-## How Stages Work
+## CLI Commands
 
-### Discover
-Queries Indeed, LinkedIn, Glassdoor, ZipRecruiter, Google Jobs via JobSpy. Scrapes 48 Workday employer portals (configurable in `employers.yaml`). Hits 30 direct career sites with custom extractors. Deduplicates by URL.
-
-### Enrich
-Visits each job URL and extracts the full description. 3-tier cascade: JSON-LD structured data, then CSS selector patterns, then AI-powered extraction for unknown layouts.
-
-### Score
-AI scores every job 1-10 against your profile. 9-10 = strong match, 7-8 = good, 5-6 = moderate, 1-4 = skip. Only jobs above your threshold proceed to tailoring.
-
-### Tailor
-Generates a custom resume per job: reorders experience, emphasizes relevant skills, incorporates keywords from the job description. Your `resume_facts` (companies, projects, metrics) are preserved exactly. The AI reorganizes but never fabricates.
-
-### Cover Letter
-Writes a targeted cover letter per job referencing the specific company, role, and how your experience maps to their requirements.
+### Pipeline
+```bash
+jobpilot run                    # Run all stages
+jobpilot run discover enrich    # Run specific stages
+jobpilot run -w 4               # Parallel mode (4 workers)
+jobpilot run --stream           # Concurrent stages
+jobpilot run --min-score 8      # Override score threshold
+jobpilot run --validation lenient  # Relax validation (recommended for Gemini free tier)
+```
 
 ### Auto-Apply
-Claude Code launches a Chrome instance, navigates to each application page, detects the form type, fills personal information and work history, uploads the tailored resume and cover letter, answers screening questions with AI, and submits. A live dashboard shows progress in real-time.
-
-The Playwright MCP server is configured automatically at runtime per worker. No manual MCP setup needed.
-
 ```bash
-# Utility modes (no Chrome/Claude needed)
-applypilot apply --mark-applied URL    # manually mark a job as applied
-applypilot apply --mark-failed URL     # manually mark a job as failed
-applypilot apply --reset-failed        # reset all failed jobs for retry
-applypilot apply --gen --url URL       # generate prompt file for manual debugging
+jobpilot apply                  # Submit applications
+jobpilot apply -w 3             # Parallel apply (3 browsers)
+jobpilot apply --dry-run        # Fill forms without submitting
+jobpilot apply --continuous     # Run forever, polling for new jobs
+jobpilot apply --headless       # Headless browser mode
+jobpilot apply --url URL        # Apply to specific job
+```
+
+### Utilities
+```bash
+jobpilot init                   # First-time setup wizard
+jobpilot doctor                 # Verify setup, diagnose issues
+jobpilot status                 # Pipeline statistics
+jobpilot dashboard              # Open HTML results dashboard
+jobpilot apply --mark-applied URL    # Manually mark as applied
+jobpilot apply --mark-failed URL     # Manually mark as failed
+jobpilot apply --reset-failed        # Reset failed jobs for retry
+jobpilot apply --gen --url URL       # Generate prompt file for debugging
 ```
 
 ---
 
-## CLI Reference
+## How It Works
 
-```
-applypilot init                         # First-time setup wizard
-applypilot doctor                       # Verify setup, diagnose missing requirements
-applypilot run [stages...]              # Run pipeline stages (or 'all')
-applypilot run --workers 4              # Parallel discovery/enrichment
-applypilot run --stream                 # Concurrent stages (streaming mode)
-applypilot run --min-score 8            # Override score threshold
-applypilot run --dry-run                # Preview without executing
-applypilot run --validation lenient     # Relax validation (recommended for Gemini free tier)
-applypilot run --validation strict      # Strictest validation (retries on any banned word)
-applypilot apply                        # Launch auto-apply
-applypilot apply --workers 3            # Parallel browser workers
-applypilot apply --dry-run              # Fill forms without submitting
-applypilot apply --continuous           # Run forever, polling for new jobs
-applypilot apply --headless             # Headless browser mode
-applypilot apply --url URL              # Apply to a specific job
-applypilot status                       # Pipeline statistics
-applypilot dashboard                    # Open HTML results dashboard
-```
+### Job Discovery
+Queries multiple job boards via JobSpy, scrapes Workday employer portals, and extracts jobs from direct career sites. Deduplicates by URL.
+
+### Enrichment
+Visits each job URL and extracts full descriptions using a 3-tier cascade:
+1. JSON-LD structured data
+2. CSS selector patterns
+3. AI-powered extraction for unknown layouts
+
+### Scoring
+AI evaluates each job against your profile and assigns a fit score (1-10):
+- **9-10**: Strong match — proceed to tailoring
+- **7-8**: Good match — proceed if above threshold
+- **5-6**: Moderate match — skip unless threshold is low
+- **1-4**: Poor match — skip
+
+### Resume Tailoring
+AI rewrites your resume per job:
+- Reorders experience sections to highlight relevance
+- Emphasizes skills and achievements matching the job
+- Incorporates keywords from the job description
+- Preserves all factual information (companies, projects, metrics)
+- Never fabricates or invents experience
+
+### Cover Letter Generation
+1. Finds base template based on role category
+2. Uses LLM to customize with:
+   - Company-specific information
+   - Role-specific interest and motivation
+   - References to job description details
+3. Generates both TXT and PDF versions
+4. Auto-detects form requirements (text field vs. file upload)
+
+### Auto-Apply
+Claude Code agent:
+- Launches Chrome instances per worker
+- Navigates to application pages
+- Detects form types (Workday, Lever, Greenhouse, custom)
+- Fills personal information from profile
+- Uploads tailored resume and cover letter
+- Answers screening questions intelligently
+- Solves CAPTCHAs (with CapSolver or manual fallback)
+- Submits applications
+- Shows real-time progress in dashboard
 
 ---
 
-## Contributing
+## Validation Modes
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and PR guidelines.
+Control LLM validation strictness:
+
+- **`strict`**: Banned words = errors, LLM judge must pass. Most retries, highest quality.
+- **`normal`**: Banned words = warnings only. Recommended for Gemini free tier (default).
+- **`lenient`**: Banned words ignored, LLM judge skipped. Fastest, fewest API calls.
+
+---
+
+## File Structure
+
+```
+~/.jobpilot/
+├── profile.json              # Your personal data
+├── searches.yaml              # Job search configuration
+├── .env                       # API keys
+├── base_resumes/              # Base resume templates
+├── base_cover_letters/        # Base cover letter templates
+│   ├── {name}_{category}.txt # Personalized templates
+│   └── {category}.txt        # Category templates
+├── tailored_resumes/          # Generated tailored resumes
+├── cover_letters/             # Generated cover letters (TXT + PDF)
+└── jobs.db                    # SQLite database
+```
 
 ---
 
 ## License
 
-ApplyPilot is licensed under the [GNU Affero General Public License v3.0](LICENSE).
-
-You are free to use, modify, and distribute this software. If you deploy a modified version as a service, you must release your source code under the same license.
+JobPilot is licensed under the [GNU Affero General Public License v3.0](LICENSE).

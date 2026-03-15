@@ -1,0 +1,18 @@
+{
+  "name": "applypilot",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "install:resume-deps": "npm install @htmldocs/react@^0.2.30 @htmldocs/render@^0.2.30 react react-dom react-icons ts-node tsconfig-paths typescript --save-dev"
+  },
+  "devDependencies": {
+    "@htmldocs/react": "^0.2.30",
+    "@htmldocs/render": "^0.2.30",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.0.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.3"
+  }
+}

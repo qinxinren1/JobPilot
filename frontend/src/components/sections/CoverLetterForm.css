@@ -1,0 +1,282 @@
+.cover-letter-container {
+  max-width: 1200px;
+}
+
+.cover-letter-header {
+  margin-bottom: 2rem;
+}
+
+.cover-letter-header h3 {
+  color: var(--color-button-text, #333);
+  font-weight: 600;
+}
+
+.cover-letter-header .section-description {
+  color: var(--color-paragraph, #444);
+}
+
+.cover-letter-section {
+  margin-bottom: 3rem;
+  padding: 1.5rem;
+  background: var(--color-bg-secondary, #f9f9f9);
+  border-radius: 8px;
+  border: 1px solid var(--color-stroke, #e0e0e0);
+}
+
+.cover-letter-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-button-text, #333);
+}
+
+.cover-letter-section-description {
+  color: var(--color-paragraph, #333);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.role-configs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.role-config-card {
+  background: white;
+  border: 1px solid var(--color-stroke, #e0e0e0);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.role-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.role-config-header h5 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.role-override-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-paragraph, #444);
+}
+
+.role-config-content {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cover-letter-actions {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--color-stroke, #e0e0e0);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-paragraph, #444);
+  background: white;
+  border-radius: 6px;
+  border: 1px dashed #ccc;
+}
+
+.empty-state p {
+  color: var(--color-paragraph, #444);
+  margin: 0.5rem 0;
+}
+
+/* Ensure disabled inputs have visual feedback */
+.job-config-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+}
+
+/* Templates List */
+.templates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.template-card {
+  background: white;
+  border: 1px solid var(--color-stroke, #e0e0e0);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.template-header h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.template-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--color-paragraph, #444);
+  flex-wrap: wrap;
+}
+
+.template-preview {
+  color: var(--color-paragraph, #444) !important;
+  line-height: 1.5;
+}
+
+.default-badge {
+  background: #4CAF50;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.template-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.template-action-btn {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--color-stroke, #e0e0e0);
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.template-action-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.template-action-btn.delete {
+  color: #d32f2f;
+  border-color: #d32f2f;
+}
+
+.template-action-btn.delete:hover:not(:disabled) {
+  background: #ffebee;
+}
+
+.template-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Upload Modal */
+.upload-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.upload-modal {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.upload-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.upload-modal-header h4 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--color-button-text, #333);
+  font-weight: 600;
+}
+
+.upload-modal-header button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-paragraph, #444);
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-modal-header button:hover {
+  color: var(--color-button-text, #000);
+}
+
+.upload-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Ensure labels are visible in modal (white background) */
+.upload-modal {
+  color: #333;
+}
+
+.upload-modal .job-config-label {
+  color: #333 !important;
+}
+
+.upload-modal .job-config-hint {
+  color: #666 !important;
+}
+
+.upload-modal .job-config-input {
+  background-color: #f5f5f5 !important;
+  color: #333 !important;
+  border-color: #ddd !important;
+}
+
+.upload-modal .job-config-input:focus {
+  background-color: #fff !important;
+  border-color: var(--color-button, #eebbc3) !important;
+}
+
+.upload-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}

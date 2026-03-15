@@ -49,7 +49,7 @@
   "resume_facts": {
     "preserved_companies": ["Company A", "Company B"],
     "preserved_projects": ["Project X", "Project Y"],
-    "preserved_school": "Your University",
+    "preserved_schools": ["Your University", "Another University"],
     "real_metrics": ["50% improvement", "10x faster"]
   },
   "eeo_voluntary": {

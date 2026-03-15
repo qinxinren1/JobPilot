@@ -1,0 +1,90 @@
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-header {
+  background: var(--color-button);
+  color: var(--color-button-text);
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.app-header h1 {
+  font-size: 1.75rem;
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-headline);
+  flex-shrink: 0;
+}
+
+.main-tabs {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.main-tab {
+  padding: 0.5rem 1.25rem;
+  background: transparent;
+  color: var(--color-button-text);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.main-tab:hover {
+  background: rgba(35, 41, 70, 0.1);
+  border-color: rgba(35, 41, 70, 0.2);
+}
+
+.main-tab.active {
+  background: var(--color-background);
+  color: var(--color-headline);
+  border-color: var(--color-background);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .app-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .main-tabs {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .main-tab {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .app-main {
+    padding: 0;
+  }
+}

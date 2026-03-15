@@ -1,0 +1,236 @@
+.resume-upload-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.resume-upload-modal {
+  background: var(--color-main);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-stroke);
+}
+
+.resume-upload-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-stroke);
+}
+
+.resume-upload-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--color-button-text);
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--color-button-text);
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background-color: rgba(35, 41, 70, 0.1);
+  color: var(--color-button-text);
+}
+
+.resume-upload-content {
+  padding: 1.5rem;
+}
+
+.upload-section {
+  margin-bottom: 1.5rem;
+}
+
+.upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.upload-area {
+  border: 2px dashed var(--color-stroke);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.2s;
+  background-color: var(--color-background);
+}
+
+.upload-area:hover {
+  border-color: var(--color-button);
+  background-color: rgba(35, 41, 70, 0.2);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-placeholder p {
+  margin: 0;
+  color: var(--color-button-text);
+}
+
+.upload-hint {
+  font-size: 0.85rem;
+  color: var(--color-button-text);
+  opacity: 0.7;
+}
+
+.file-selected {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.file-icon {
+  font-size: 2rem;
+}
+
+.file-name {
+  font-weight: 600;
+  color: var(--color-button-text);
+}
+
+.file-size {
+  color: var(--color-button-text);
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.preview-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--color-background);
+  border-radius: 4px;
+  border: 1px solid var(--color-stroke);
+}
+
+.preview-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--color-headline);
+}
+
+.preview-text {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--color-headline);
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.options-section {
+  margin-bottom: 1.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  color: var(--color-button-text);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.option-hint {
+  display: block;
+  color: var(--color-button-text);
+  font-size: 0.85rem;
+  margin-left: 1.5rem;
+  opacity: 0.7;
+}
+
+.error-message {
+  background-color: var(--color-button);
+  color: var(--color-button-text);
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-stroke);
+}
+
+.upload-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.cancel-button,
+.upload-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-button {
+  background-color: var(--color-main);
+  color: var(--color-button-text);
+}
+
+.cancel-button:hover:not(:disabled) {
+  background-color: var(--color-paragraph);
+  color: var(--color-background);
+}
+
+.upload-button {
+  background: var(--color-button);
+  color: var(--color-button-text);
+}
+
+.upload-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(238, 187, 195, 0.4);
+  background: var(--color-highlight);
+}
+
+.cancel-button:disabled,
+.upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

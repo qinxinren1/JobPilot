@@ -1,0 +1,87 @@
+{
+  "personal": {
+    "full_name": "YOUR_LEGAL_NAME",
+    "preferred_name": "YOUR_PREFERRED_NAME",
+    "email": "your.email@example.com",
+    "password": "YOUR_JOB_SITE_PASSWORD",
+    "phone": "555-123-4567",
+    "address": "123 Main St",
+    "city": "Your City",
+    "province_state": "Your State/Province",
+    "country": "Your Country",
+    "postal_code": "A1B 2C3",
+    "linkedin_url": "https://www.linkedin.com/in/yourprofile",
+    "github_url": "https://github.com/yourusername",
+    "portfolio_url": "",
+    "website_url": ""
+  },
+  "work_authorization": {
+    "legally_authorized_to_work": "Yes",
+    "require_sponsorship": "No",
+    "work_permit_type": ""
+  },
+  "availability": {
+    "earliest_start_date": "Immediately",
+    "available_for_full_time": "Yes",
+    "available_for_contract": "No"
+  },
+  "compensation": {
+    "salary_expectation": "85000",
+    "salary_currency": "USD",
+    "salary_range_min": "80000",
+    "salary_range_max": "100000",
+    "currency_conversion_note": ""
+  },
+  "experience": {
+    "years_of_experience_total": "5",
+    "education_level": "Bachelor's Degree",
+    "current_job_title": "Software Engineer",
+    "current_company": "Current Company",
+    "target_role": "Software Engineer"
+  },
+  "skills_boundary": {
+    "programming_languages": ["Python", "JavaScript", "TypeScript"],
+    "frameworks": ["React", "FastAPI", "Next.js", "Flask"],
+    "devops": ["Docker", "AWS", "CI/CD", "Kubernetes"],
+    "databases": ["PostgreSQL", "MongoDB", "Redis"],
+    "tools": ["Git", "Linux", "Vite", "Webpack"]
+  },
+  "target_roles": {
+    "frontend": {
+      "name": "Frontend Engineer",
+      "base_resume_path": "~/.jobpilot/base_resumes/frontend.txt",
+      "skills_emphasis": ["React", "TypeScript", "Next.js", "Tailwind CSS", "Vite"],
+      "experience_filter": ["frontend", "ui", "web", "react", "typescript", "javascript"],
+      "selected_work_experiences": ["exp_1", "exp_2"],
+      "selected_projects": ["proj_1", "proj_2"]
+    },
+    "backend": {
+      "name": "Backend Engineer",
+      "base_resume_path": "~/.jobpilot/base_resumes/backend.txt",
+      "skills_emphasis": ["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"],
+      "experience_filter": ["backend", "api", "server", "database", "python", "rest"],
+      "selected_work_experiences": ["exp_1", "exp_3"],
+      "selected_projects": ["proj_3", "proj_4"]
+    },
+    "fullstack": {
+      "name": "Full Stack Engineer",
+      "base_resume_path": "~/.jobpilot/base_resumes/fullstack.txt",
+      "skills_emphasis": ["React", "Python", "PostgreSQL", "AWS", "Docker"],
+      "experience_filter": ["fullstack", "full-stack", "web", "api", "end-to-end"],
+      "selected_work_experiences": ["exp_1", "exp_2", "exp_3"],
+      "selected_projects": ["proj_1", "proj_3"]
+    }
+  },
+  "resume_facts": {
+    "preserved_companies": ["Company A", "Company B"],
+    "preserved_projects": ["Project X", "Project Y"],
+    "preserved_schools": ["Your University"],
+    "real_metrics": ["50% improvement", "10x faster", "1000+ users"]
+  },
+  "eeo_voluntary": {
+    "gender": "Decline to self-identify",
+    "race_ethnicity": "Decline to self-identify",
+    "veteran_status": "I am not a protected veteran",
+    "disability_status": "I do not wish to answer"
+  }
+}
