@@ -35,7 +35,7 @@ console = Console()
 STAGE_ORDER = ("discover", "enrich", "score", "tailor", "cover", "pdf")
 
 STAGE_META: dict[str, dict] = {
-    "discover": {"desc": "Job discovery (JobSpy + Workday + smart extract)"},
+    "discover": {"desc": "Job discovery (JobSpy: LinkedIn + Indeed)"},
     "enrich":   {"desc": "Detail enrichment (full descriptions + apply URLs)"},
     "score":    {"desc": "LLM scoring (fit 1-10)"},
     "tailor":   {"desc": "Resume tailoring (LLM + validation)"},
@@ -60,11 +60,11 @@ _UPSTREAM: dict[str, str | None] = {
 # ---------------------------------------------------------------------------
 
 def _run_discover(workers: int = 1) -> dict:
-    """Stage: Job discovery — JobSpy, Workday, and smart-extract scrapers."""
-    stats: dict = {"jobspy": None, "workday": None, "smartextract": None}
+    """Stage: Job discovery — JobSpy only (LinkedIn + Indeed)."""
+    stats: dict = {"jobspy": None}
 
-    # JobSpy
-    console.print("  [cyan]JobSpy full crawl...[/cyan]")
+    # JobSpy (LinkedIn + Indeed only)
+    console.print("  [cyan]JobSpy full crawl (LinkedIn + Indeed)...[/cyan]")
     try:
         from jobpilot.discovery.jobspy import run_discovery
         run_discovery()
@@ -74,27 +74,30 @@ def _run_discover(workers: int = 1) -> dict:
         console.print(f"  [red]JobSpy error:[/red] {e}")
         stats["jobspy"] = f"error: {e}"
 
-    # Workday corporate scraper
-    console.print("  [cyan]Workday corporate scraper...[/cyan]")
-    try:
-        from jobpilot.discovery.workday import run_workday_discovery
-        run_workday_discovery(workers=workers)
-        stats["workday"] = "ok"
-    except Exception as e:
-        log.error("Workday scraper failed: %s", e)
-        console.print(f"  [red]Workday error:[/red] {e}")
-        stats["workday"] = f"error: {e}"
-
-    # Smart extract
-    console.print("  [cyan]Smart extract (AI-powered scraping)...[/cyan]")
-    try:
-        from jobpilot.discovery.smartextract import run_smart_extract
-        run_smart_extract(workers=workers)
-        stats["smartextract"] = "ok"
-    except Exception as e:
-        log.error("Smart extract failed: %s", e)
-        console.print(f"  [red]Smart extract error:[/red] {e}")
-        stats["smartextract"] = f"error: {e}"
+    # Workday and SmartExtract are disabled - only using JobSpy (LinkedIn + Indeed)
+    # Uncomment below if you want to re-enable these sources:
+    #
+    # # Workday corporate scraper
+    # console.print("  [cyan]Workday corporate scraper...[/cyan]")
+    # try:
+    #     from jobpilot.discovery.workday import run_workday_discovery
+    #     run_workday_discovery(workers=workers)
+    #     stats["workday"] = "ok"
+    # except Exception as e:
+    #     log.error("Workday scraper failed: %s", e)
+    #     console.print(f"  [red]Workday error:[/red] {e}")
+    #     stats["workday"] = f"error: {e}"
+    #
+    # # Smart extract
+    # console.print("  [cyan]Smart extract (AI-powered scraping)...[/cyan]")
+    # try:
+    #     from jobpilot.discovery.smartextract import run_smart_extract
+    #     run_smart_extract(workers=workers)
+    #     stats["smartextract"] = "ok"
+    # except Exception as e:
+    #     log.error("Smart extract failed: %s", e)
+    #     console.print(f"  [red]Smart extract error:[/red] {e}")
+    #     stats["smartextract"] = f"error: {e}"
 
     return stats
 

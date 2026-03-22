@@ -12,15 +12,15 @@ interface ResumeFactsFormProps {
   profile?: Profile
 }
 
-export default function ResumeFactsForm({ data, onChange, experience, profile }: ResumeFactsFormProps) {
-  const [formData, setFormData] = useState<Partial<ResumeFacts>>(data)
+export default function ResumeFactsForm({ data, onChange: _onChange, experience, profile }: ResumeFactsFormProps) {
+  const [, setFormData] = useState<Partial<ResumeFacts>>(data)
   const [previewHtml, setPreviewHtml] = useState<string>('')
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [previewLoadingRoleKey, setPreviewLoadingRoleKey] = useState<string | null>(null)
+  const [savingTemplateRoleKey, setSavingTemplateRoleKey] = useState<string | null>(null)
   const [previewingRoleKey, setPreviewingRoleKey] = useState<string | null>(null)
-  const [activeRoleKey, setActiveRoleKey] = useState<string | null>(null)
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({})
   const queryClient = useQueryClient()
+  void _onChange
   
   // Get target_roles from profile (unified category system)
   const targetRoles = profile?.target_roles || {}
@@ -29,6 +29,26 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
   useEffect(() => {
     setFormData(data)
   }, [data])
+
+  const slugifyRoleKey = (name: string) => {
+    const base = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+    return base || 'role'
+  }
+
+  const generateUniqueRoleKey = (baseName: string) => {
+    const base = slugifyRoleKey(baseName)
+    let key = base
+    let i = 2
+    while (Object.prototype.hasOwnProperty.call(targetRoles, key)) {
+      key = `${base}_${i}`
+      i += 1
+    }
+    return key
+  }
 
   // Update target role
   const updateTargetRole = async (roleKey: string, updates: Partial<TargetRole>) => {
@@ -48,6 +68,65 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
     } catch (error: any) {
       console.error('Failed to update target role:', error)
       alert('Failed to update target role: ' + (error.response?.data?.detail || error.message))
+    }
+  }
+
+  const addTargetRole = async () => {
+    if (!profile) {
+      alert('Profile not loaded yet. Please try again in a moment.')
+      return
+    }
+
+    const proposedName = window.prompt('New target role name (e.g., "Frontend", "Data", "ML")', 'New Role')
+    if (proposedName === null) return
+    const name = proposedName.trim()
+    if (!name) {
+      alert('Role name cannot be empty.')
+      return
+    }
+
+    const roleKey = generateUniqueRoleKey(name)
+    const updatedTargetRoles = {
+      ...targetRoles,
+      [roleKey]: {
+        name,
+        base_resume_path: '',
+        selected_work_experiences: [],
+        selected_projects: [],
+      },
+    }
+
+    try {
+      await profileApi.updateSection('target_roles', updatedTargetRoles)
+      setExpandedRoles(prev => ({ ...prev, [roleKey]: true }))
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+    } catch (error: any) {
+      console.error('Failed to add target role:', error)
+      alert('Failed to add target role: ' + (error.response?.data?.detail || error.message))
+    }
+  }
+
+  const removeTargetRole = async (roleKey: string) => {
+    if (!profile) return
+    const roleName = targetRoles[roleKey]?.name || roleKey
+    const ok = window.confirm(`Delete target role "${roleName}"? This cannot be undone.`)
+    if (!ok) return
+
+    const updatedTargetRoles = { ...targetRoles }
+    delete updatedTargetRoles[roleKey]
+
+    try {
+      await profileApi.updateSection('target_roles', updatedTargetRoles)
+      setExpandedRoles(prev => {
+        const next = { ...prev }
+        delete next[roleKey]
+        return next
+      })
+      setPreviewingRoleKey(prev => (prev === roleKey ? null : prev))
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+    } catch (error: any) {
+      console.error('Failed to remove target role:', error)
+      alert('Failed to remove target role: ' + (error.response?.data?.detail || error.message))
     }
   }
 
@@ -77,7 +156,7 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
   }
 
   // Build filtered profile for a target role
-  const buildFilteredProfile = (roleKey: string, role: TargetRole) => {
+  const buildFilteredProfile = (role: TargetRole) => {
     const workExperiences = (experience?.work_experiences || []).filter((exp: any, idx: number) => {
       const expId = exp._id || idx.toString()
       return role.selected_work_experiences?.includes(expId)
@@ -107,17 +186,18 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
 
   // Generate preview
   const generatePreview = async (roleKey: string) => {
+    if (savingTemplateRoleKey !== null) return
     const role = targetRoles[roleKey]
     if (!role || !role.name) {
       alert('Please configure the target role name first')
       return
     }
 
-    setPreviewLoading(true)
+    setPreviewLoadingRoleKey(roleKey)
     try {
-      const previewProfile = buildFilteredProfile(roleKey, role)
+      const previewProfile = buildFilteredProfile(role)
 
-      const response = await apiClient.post('/api/profile/preview-resume', {
+      const response = await apiClient.post('/api/resume/preview', {
         profile: previewProfile,
         job_position: role.name
       })
@@ -128,23 +208,24 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
       console.error('Failed to generate preview:', error)
       alert('Failed to generate preview: ' + (error.response?.data?.detail || error.message))
     } finally {
-      setPreviewLoading(false)
+      setPreviewLoadingRoleKey(null)
     }
   }
 
   // Generate and save as template
   const generateAndSaveTemplate = async (roleKey: string) => {
+    if (previewLoadingRoleKey !== null || savingTemplateRoleKey !== null) return
     const role = targetRoles[roleKey]
     if (!role || !role.name) {
       alert('Please configure the target role name first')
       return
     }
 
-    setSavingTemplate(true)
+    setSavingTemplateRoleKey(roleKey)
     try {
-      const filteredProfile = buildFilteredProfile(roleKey, role)
+      const filteredProfile = buildFilteredProfile(role)
 
-      const response = await resumesApi.generateResumeFromProfile(
+      await resumesApi.generateResumeFromProfile(
         role.name,
         role.name,
         '',
@@ -162,7 +243,7 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
       console.error('Failed to generate template:', error)
       alert('Failed to generate template: ' + (error.response?.data?.detail || error.message))
     } finally {
-      setSavingTemplate(false)
+      setSavingTemplateRoleKey(null)
     }
   }
 
@@ -194,6 +275,16 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
       <div className="resume-facts-layout">
         {/* Left: Target Roles section */}
         <div className="resume-categories-section">
+          <div className="section-header">
+            <h4>Roles</h4>
+            <button
+              type="button"
+              className="add-category-button"
+              onClick={addTargetRole}
+            >
+              + Add role
+            </button>
+          </div>
           {targetRolesList.length === 0 ? (
             <div className="empty-state">
               <p>No target roles configured yet.</p>
@@ -228,20 +319,32 @@ export default function ResumeFactsForm({ data, onChange, experience, profile }:
                       type="button"
                       className="preview-button"
                       onClick={() => generatePreview(roleKey)}
-                      disabled={previewLoading || savingTemplate}
+                      disabled={previewLoadingRoleKey === roleKey}
                     >
-                      {previewLoading ? 'Generating...' : 'Preview'}
+                      {previewLoadingRoleKey === roleKey ? 'Generating...' : 'Preview'}
                     </button>
                     <button
                       type="button"
                       className="save-template-button"
                       onClick={() => generateAndSaveTemplate(roleKey)}
-                      disabled={previewLoading || savingTemplate || !role.name}
+                      disabled={savingTemplateRoleKey === roleKey || !role.name}
                       title="Generate PDF and save as template"
                     >
-                      {savingTemplate ? 'Saving...' : 'Save as Template'}
+                      {savingTemplateRoleKey === roleKey ? 'Saving...' : 'Save as Template'}
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    className="remove-category-button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeTargetRole(roleKey)
+                    }}
+                    title="Delete role"
+                    aria-label="Delete role"
+                  >
+                    ×
+                  </button>
                 </div>
 
                 {role.name && isRoleExpanded(roleKey) && (

@@ -40,7 +40,6 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
   const [editingTemplate, setEditingTemplate] = useState<CoverLetterTemplate | null>(null)
   const [templateContent, setTemplateContent] = useState('')
   const [templateRoleCategory, setTemplateRoleCategory] = useState('')
-  const [templateIsDefault, setTemplateIsDefault] = useState(false)
 
   // Load existing config
   useEffect(() => {
@@ -72,16 +71,7 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
       if (!templateRoleCategory || !templateContent) {
         throw new Error('Category and content are required')
       }
-      // Auto-generate name from category
-      const roleName = templateRoleCategory 
-        ? (targetRoles[templateRoleCategory] as { name?: string })?.name || templateRoleCategory
-        : 'General'
-      return coverLetterTemplatesApi.createTemplate(
-        roleName,
-        templateContent,
-        templateRoleCategory,
-        templateIsDefault
-      )
+      return coverLetterTemplatesApi.setTemplate(templateRoleCategory, templateContent)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coverLetterTemplates'] })
@@ -102,16 +92,7 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
       if (!templateRoleCategory || !templateContent) {
         throw new Error('Category and content are required')
       }
-      // Auto-generate name from category
-      const roleName = templateRoleCategory 
-        ? (targetRoles[templateRoleCategory] as { name?: string })?.name || templateRoleCategory
-        : 'General'
-      return coverLetterTemplatesApi.updateTemplate(editingTemplate.id, {
-        name: roleName,
-        content: templateContent,
-        role_category: templateRoleCategory,
-        is_default: templateIsDefault,
-      })
+      return coverLetterTemplatesApi.setTemplate(templateRoleCategory, templateContent)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coverLetterTemplates'] })
@@ -129,14 +110,12 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
   const resetForm = () => {
     setTemplateContent('')
     setTemplateRoleCategory('')
-    setTemplateIsDefault(false)
   }
 
   const handleEdit = (template: CoverLetterTemplate) => {
     setEditingTemplate(template)
     setTemplateContent(template.content)
     setTemplateRoleCategory(template.role_category || '')
-    setTemplateIsDefault(template.is_default)
     setShowCreateModal(true)
   }
 
@@ -155,7 +134,7 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
   }
 
   const deleteMutation = useMutation({
-    mutationFn: coverLetterTemplatesApi.deleteTemplate,
+    mutationFn: (roleCategory: string) => coverLetterTemplatesApi.deleteTemplate(roleCategory),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coverLetterTemplates'] })
       alert('Template deleted successfully!')
@@ -164,19 +143,6 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
       const message = error instanceof Error ? error.message : 'Unknown error'
       const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       alert(`Failed to delete template: ${detail || message}`)
-    },
-  })
-
-  const setDefaultMutation = useMutation({
-    mutationFn: coverLetterTemplatesApi.setDefaultTemplate,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['coverLetterTemplates'] })
-      alert('Default template updated!')
-    },
-    onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      alert(`Failed to set default template: ${detail || message}`)
     },
   })
 
@@ -240,13 +206,10 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
                 : 'General'
               
               return (
-                <div key={template.id} className="template-card">
+                <div key={template.role_category} className="template-card">
                   <div className="template-header">
                     <div>
                       <h5>{roleName}</h5>
-                      <div className="template-meta">
-                        {template.is_default && <span className="default-badge">Default</span>}
-                      </div>
                       {template.content && (
                         <div className="template-preview" style={{ marginTop: '0.5rem', fontSize: '0.85rem', maxHeight: '100px', overflow: 'hidden' }}>
                           {template.content.substring(0, 150)}{template.content.length > 150 ? '...' : ''}
@@ -261,21 +224,11 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
                       >
                         Edit
                       </button>
-                      {!template.is_default && (
-                        <button
-                          type="button"
-                          onClick={() => setDefaultMutation.mutate(template.id)}
-                          className="template-action-btn"
-                          disabled={setDefaultMutation.isPending}
-                        >
-                          Set Default
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => {
                           if (confirm(`Delete template for "${roleName}"?`)) {
-                            deleteMutation.mutate(template.id)
+                            deleteMutation.mutate(template.role_category)
                           }
                         }}
                         className="template-action-btn delete"
@@ -342,17 +295,6 @@ export default function CoverLetterForm({ onSave, isSaving }: CoverLetterFormPro
                 <div className="job-config-hint">
                   Enter the cover letter content. You can use placeholders like {`{job_title}`}, {`{company_name}`}, etc. if needed.
                 </div>
-              </div>
-              <div className="job-config-input-group">
-                <label className="job-config-label" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={templateIsDefault}
-                    onChange={(e) => setTemplateIsDefault(e.target.checked)}
-                    style={{ marginRight: '0.5rem' }}
-                  />
-                  Set as default template
-                </label>
               </div>
               <div className="upload-modal-actions">
                 <button

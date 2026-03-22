@@ -5,7 +5,6 @@ postings. All personal data (name, skills, achievements) comes from the user's
 profile at runtime. No hardcoded personal information.
 """
 
-import json
 import logging
 import re
 import time
@@ -13,101 +12,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from jobpilot.config import COVER_LETTER_DIR, BASE_COVER_LETTERS_DIR, load_profile
-from jobpilot.database import get_connection, get_jobs_by_stage
+from jobpilot.database import get_connection
 from jobpilot.llm import get_client
-from jobpilot.resume.formatter import generate_resume_text_from_profile
+from jobpilot.scoring.utils import get_safe_name_from_profile
 from jobpilot.scoring.validator import (
     BANNED_WORDS,
     LLM_LEAK_PHRASES,
     sanitize_text,
     validate_cover_letter,
 )
-from jobpilot.scoring.scorer import classify_job_role
 
 log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 5  # max cross-run retries before giving up
-
-
-# ── Template Matching ────────────────────────────────────────────────────
-
-def _find_matching_cover_letter_template(conn, job: dict, profile: dict = None) -> dict | None:
-    """Find the best matching cover letter template for a job.
-    
-    Matching logic (only 2 strategies):
-    1. Match by role_category: If job has role_category, find template with matching role_category
-    2. Use default template (is_default=True) if no role_category match
-    
-    Args:
-        conn: Database connection (used for saving role_category classification)
-        job: Job dict with title, full_description, and optionally role_category
-        profile: Optional user profile dict (used for role classification if job doesn't have role_category)
-        
-    Returns:
-        Template dict with keys: id, name, role_category, content, or None if no templates exist
-    """
-    # Load templates metadata from file
-    meta_path = BASE_COVER_LETTERS_DIR / "templates_meta.json"
-    if not meta_path.exists():
-        return None
-    
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except Exception as e:
-        log.debug("Failed to load cover letter templates metadata: %s", e)
-        return None
-    
-    templates = meta.get("templates", [])
-    if not templates:
-        return None
-    
-    # Get or classify job role category
-    job_role_category = job.get("role_category")
-    if not job_role_category and profile:
-        # Try to classify the job if not already classified
-        job_role_category = classify_job_role(job, profile)
-        if job_role_category:
-            # Save the classification to the database
-            try:
-                conn.execute(
-                    "UPDATE jobs SET role_category = ? WHERE url = ?",
-                    (job_role_category, job.get("url", ""))
-                )
-                conn.commit()
-            except Exception as e:
-                log.debug("Failed to save role_category to database: %s", e)
-    
-    # Strategy 1: Match by role_category (highest priority)
-    if job_role_category:
-        matching_templates = [
-            t for t in templates
-            if t.get("role_category") == job_role_category
-        ]
-        
-        if matching_templates:
-            # Sort by is_default DESC, updated_at DESC
-            matching_templates.sort(
-                key=lambda x: (not x.get("is_default", False), x.get("updated_at", "")),
-                reverse=True
-            )
-            
-            # Load content from file
-            template = matching_templates[0]
-            file_path = Path(template.get("file_path", ""))
-            if file_path.exists():
-                try:
-                    content = file_path.read_text(encoding="utf-8")
-                    return {
-                        "id": template.get("id"),
-                        "name": template.get("name", ""),
-                        "role_category": template.get("role_category", ""),
-                        "content": content
-                    }
-                except Exception as e:
-                    log.debug("Failed to read template file %s: %s", file_path, e)
-    
-    
-    return None
 
 
 # ── PDF Generation ──────────────────────────────────────────────────────
@@ -281,24 +198,12 @@ def get_or_generate_cover_letter(
     """
     # 1. Get role_category (should already be set from scoring/tailoring)
     role_category = job.get("role_category")
-    if not role_category:
-        role_category = classify_job_role(job, profile)
-        if role_category:
-            # Save the classification to the database
-            try:
-                conn = get_connection()
-                conn.execute("UPDATE jobs SET role_category = ? WHERE url = ?", (role_category, job.get("url", "")))
-                conn.commit()
-            except Exception:
-                pass
     
     # 2. Check base cover letters: try {name}_{category}.txt, then {category}.txt, then any .txt file
     base_cl_text = None
     
     if role_category:
-        personal = profile["personal"]
-        full_name = personal.get("full_name", "")
-        name_safe = "".join(c for c in full_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(" ", "_")
+        name_safe = get_safe_name_from_profile(profile)
         
         # Try 1: {name}_{category}.txt (personalized)
         base_cl_path = BASE_COVER_LETTERS_DIR / f"{name_safe}_{role_category}.txt"
@@ -320,23 +225,7 @@ def get_or_generate_cover_letter(
                     base_cl_path = txt_files[0]
                     base_cl_text = base_cl_path.read_text(encoding="utf-8")
                     log.info(f"Found generic base cover letter: {base_cl_path}")
-    
-    # 3. Use base template if found, otherwise use generic template
-    if not base_cl_text:
-        # Create minimal generic template
-        personal = profile["personal"]
-        sign_off_name = personal.get("preferred_name") or personal.get("full_name", "")
-        base_cl_text = f"""Dear Hiring Manager,
 
-I am writing to express my interest in the {{position}} role at {{company}}.
-
-[Add your background and experience here - keep existing content from your base template if you have one]
-
-[Add why you're interested in this company and this specific role - customize with company and job-specific details]
-
-Thank you for considering my application. I look forward to the opportunity to discuss how I can contribute to your team.
-
-{sign_off_name}"""
     
     # 4. Customize with LLM (works for both base template and generic template)
     cover_letter_text = _generate_with_llm(
@@ -354,8 +243,10 @@ Thank you for considering my application. I look forward to the opportunity to d
     return cover_letter_text, None, None
 
 
-def _save_cover_letter_files(cover_letter_text: str, job: dict, profile: dict) -> tuple[str, str | None]:
-    """Save cover letter as both txt and pdf files, and update database.
+def _save_cover_letter_files(
+    cover_letter_text: str, job: dict, profile: dict
+) -> tuple[str, str | None]:
+    """Save cover letter as both txt and pdf files.
     
     Args:
         cover_letter_text: The cover letter text content
@@ -365,9 +256,6 @@ def _save_cover_letter_files(cover_letter_text: str, job: dict, profile: dict) -
     Returns:
         Tuple of (txt_path, pdf_path) where pdf_path may be None if generation failed
     """
-    import re
-    from datetime import datetime, timezone
-    
     # Build safe filename prefix
     safe_title = re.sub(r"[^\w\s-]", "", job.get("title", "unknown"))[:50].strip().replace(" ", "_")
     safe_site = re.sub(r"[^\w\s-]", "", job.get("site", "unknown"))[:20].strip().replace(" ", "_")
@@ -387,23 +275,16 @@ def _save_cover_letter_files(cover_letter_text: str, job: dict, profile: dict) -
         generate_cover_letter_pdf(cover_letter_text, pdf_path, profile)
         pdf_path_str = str(pdf_path)
         log.info("Saved cover letter PDF: %s", pdf_path)
+        
+        # Check PDF page count after generation (unified validation at 542)
+        pdf_validation = validate_cover_letter(cover_letter_text, mode="normal", pdf_path=pdf_path_str)
+        if not pdf_validation["passed"]:
+            for error in pdf_validation["errors"]:
+                if "PDF exceeds" in error or "pages" in error:
+                    log.warning("Cover letter PDF validation failed: %s", error)
     except Exception as e:
         log.warning("Failed to generate cover letter PDF: %s", e)
         pdf_path_str = None
-    
-    # Update database
-    conn = get_connection()
-    now = datetime.now(timezone.utc).isoformat()
-    try:
-        # Save txt path to cover_letter_path (txt is the primary file)
-        conn.execute(
-            "UPDATE jobs SET cover_letter_path=?, cover_letter_at=?, "
-            "cover_attempts=COALESCE(cover_attempts,0)+1 WHERE url=?",
-            (str(txt_path), now, job.get("url", "")),
-        )
-        conn.commit()
-    except Exception as e:
-        log.warning("Failed to update database with cover letter path: %s", e)
     
     return str(txt_path), pdf_path_str
 
@@ -447,34 +328,55 @@ def _generate_with_llm(
         company_context = f"\n\nCOMPANY CONTEXT FROM JOB DESCRIPTION:\n{desc_snippet}\n\nUse specific details from this context to personalize the cover letter for {job.get('site', 'the company')}."
     
     # Build prompt
-    customization_prompt = f"""You are customizing a cover letter template for a specific job application.
+    customization_prompt = f"""You are generating a Dutch-style cover letter for a specific job application.
 
-BASE COVER LETTER TEMPLATE:
+BASE COVER LETTER TEMPLATE (use as content foundation):
 {base_cover_letter}
 
 TARGET COMPANY: {job.get('site', 'Unknown Company')}
 TARGET POSITION: {job.get('title', 'Unknown Position')}
 LOCATION: {job.get('location', 'N/A')}
 
-TASK: Customize the base cover letter template to be specific to {job.get('site', 'the company')} and the {job.get('title', 'position')} role.
+TASK: Generate a cover letter following the Dutch-style 4-paragraph structure. Use the base cover letter template as your content foundation, but restructure it into the required format below.
 
-REQUIREMENTS:
+REQUIRED STRUCTURE (4 PARAGRAPHS):
 
-1. Replace placeholders: Replace any generic placeholders (like {{company}}, {{position}}, etc.) with "{job.get('site', 'the company')}" and "{job.get('title', 'the position')}"
+PARAGRAPH 1 - Opening Positioning:
+- Directly state your intention in 2-3 sentences
+- Clearly specify the position you're applying for
+- Briefly mention your relevant background
+- Explain why you're worth continuing to read
+- DO NOT put the most useful information in the second paragraph
+- Use content from the base template but make it direct and focused
 
-2. Add company-specific opening: In the opening paragraph, add 1-2 sentences about {job.get('site', 'the company')}:
-   - Mention their products, services, technology, or mission from the job description
-   - Explain why you're interested in working at {job.get('site', 'the company')} specifically
+PARAGRAPH 2-3 - Core Evidence:
+- Use ONE/TWO precise example to prove your advantages
+- Prioritize the experience most relevant to the job tasks
+- Describe: SCENARIO (what was the situation), ACTIONS (what you did), RESULTS (what you achieved)
+- Dutch recruitment values one precise example more than five vague experiences
+- Extract the best example from the base template content
 
-3. Add job-specific interest: Add 1-2 sentences about why you're interested in THIS specific {job.get('title', 'position')} role:
-   - What aspects of the role excite you
-   - Specific responsibilities or projects from the job description that appeal to you
+PARAGRAPH 4 - Employer Fit:
+- Explain why THIS specific team/company
+- Write about specific points that attract you: the role, product, client, team setup, or mission
+- Show you understand what problems they are solving (not just praising the company)
+- Reference specific details from the job description about their challenges, goals, or approach
+- Use content from base template but make it specific to this company and role
 
-4. Add company context: Reference specific products, services, technologies, challenges, or goals mentioned in the job description throughout the letter
+PARAGRAPH 5 - Concise Closing:
+- Concisely propose the next step
+- Express willingness for further communication
+- Natural, crisp, and professional
+- Avoid forced emotional expression
+- Keep it brief and business-appropriate
 
-5. Keep structure: Maintain the overall structure and tone of the base template, just add company and job-specific details
+KEY FORMULA: Ideally, at least one paragraph should simultaneously answer: "Why this role, Why this team, Why you can help"
 
-IMPORTANT: Keep it simple and focused. Just add concrete details about {job.get('site', 'the company')} and this {job.get('title', 'position')} role to personalize the template.
+CONTENT GUIDELINES:
+- Use the base cover letter template as your content foundation
+- Extract relevant experiences, skills, and achievements from the base template
+- Customize all content to be specific to {job.get('site', 'the company')} and the {job.get('title', 'position')} role
+- Reference specific details from the job description throughout
 {company_context}
 
 BANNED WORDS AND PHRASES (automated validator rejects ANY of these — do not use even once):
@@ -487,7 +389,7 @@ BANNED PUNCTUATION: No em dashes (—) or en dashes (–). Use commas or periods
 
 Sign off: just "{sign_off_name}"
 
-Output ONLY the customized cover letter text. No preamble. Start with "Dear Hiring Manager," and end with the sign-off name."""
+Output ONLY the cover letter text. No preamble. Start with "Dear Hiring Manager," and end with the sign-off name. Ensure exactly 4 paragraphs separated by blank lines."""
 
     for attempt in range(max_retries + 1):
         prompt = customization_prompt
@@ -504,7 +406,13 @@ Location: {job.get('location', 'N/A')}
 JOB DESCRIPTION:
 {job.get('full_description', 'No description available')[:8000]}
 
-Customize the cover letter template by adding specific details about {job.get('site', 'the company')} and this {job.get('title', 'position')} role."""
+Generate a Dutch-style cover letter with exactly 5 paragraphs:
+1. Opening Positioning: Directly state intention, position, relevant background (2-3 sentences)
+2. Core Evidence: One/Two precise examples with scenario, actions, results
+3. Employer Fit: Why this team - specific points about role/product/client/team/mission, show understanding of problems they solve
+4. Concise Closing: Natural, crisp closing expressing willingness for further communication
+
+Use the base template content as foundation, but restructure into this format and customize for {job.get('site', 'the company')} and the {job.get('title', 'position')} role."""
         
         messages = [
             {"role": "system", "content": prompt},
@@ -515,6 +423,7 @@ Customize the cover letter template by adding specific details about {job.get('s
         letter = sanitize_text(letter)
         letter = _strip_preamble(letter)
         
+        # Unified validation
         validation = validate_cover_letter(letter, mode=validation_mode)
         if validation["passed"]:
             return letter

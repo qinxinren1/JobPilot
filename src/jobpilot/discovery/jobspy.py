@@ -195,6 +195,8 @@ def _location_ok(location: str | None, accept: list[str], reject: list[str]) -> 
 
     Remote jobs are always accepted. Non-remote jobs must match an accept
     pattern and not match a reject pattern.
+    
+    If accept list is empty, all non-remote jobs are accepted (no filtering).
     """
     if not location:
         return True  # unknown location -- keep it, let scorer decide
@@ -210,12 +212,16 @@ def _location_ok(location: str | None, accept: list[str], reject: list[str]) -> 
         if r.lower() in loc:
             return False
 
+    # If accept list is empty, accept all (no filtering)
+    if not accept or len(accept) == 0:
+        return True
+
     # Accept matches
     for a in accept:
         if a.lower() in loc:
             return True
 
-    # No match -- reject unknown
+    # No match -- reject unknown (only if accept list was not empty)
     return False
 
 
@@ -305,7 +311,7 @@ def store_jobspy_results(conn: sqlite3.Connection, df, source_label: str, experi
 def _run_one_search(
     search: dict,
     sites: list[str],
-    results_per_site: int,
+    results_per_site: int | None,
     hours_old: int,
     proxy_config: dict | None,
     defaults: dict,
@@ -313,7 +319,11 @@ def _run_one_search(
     accept_locs: list[str],
     reject_locs: list[str],
 ) -> dict:
-    """Run a single search query and store results in DB."""
+    """Run a single search query and store results in DB.
+    
+    Args:
+        results_per_site: Maximum results per site. Set to 0 or None to get all available results.
+    """
     s = search
     label = f"\"{s['query']}\" in {s['location']} {'(remote)' if s.get('remote') else ''}"
     if "tier" in s:
@@ -331,15 +341,23 @@ def _run_one_search(
         removed = [si for si in sites if si not in allowed_sites]
         log.warning("[%s] Removed unsupported sites: %s (only linkedin and indeed are supported)", label, ", ".join(removed))
 
-    log.info("[%s] Starting sites: %s", label, ", ".join(filtered_sites))
+    # If results_per_site is 0 or None, set to a large number to get all results
+    # JobSpy doesn't support unlimited, so we use a large number as a workaround
+    if results_per_site and results_per_site > 0:
+        effective_results = results_per_site
+        results_info = f"{effective_results} per site"
+    else:
+        effective_results = 10000  # Large number to get all available results
+        results_info = "all available"
+    
     kwargs = {
         "site_name": filtered_sites,
         "search_term": s["query"],
         "location": s["location"],
-        "results_wanted": results_per_site,
+        "results_wanted": effective_results,
         "hours_old": hours_old,
         "description_format": "markdown",
-        "country_indeed": defaults.get("country_indeed", "usa"),
+        "country_indeed": defaults.get("country_indeed", "netherlands"),
         "verbose": 0,
     }
     if s.get("remote"):
@@ -375,36 +393,42 @@ def _run_one_search(
     ), axis=1)]
     location_filtered = before - len(df)
     
-    # Filter by experience level
-    experience_level = defaults.get("experience_level", [])
+    # Filter by experience level (same logic as search_jobs)
+    experience_level_raw = defaults.get("experience_level", [])
     # Convert to list if single string (backward compatibility)
-    if isinstance(experience_level, str):
-        experience_level = [experience_level]
-    if not isinstance(experience_level, list):
-        experience_level = []
+    if isinstance(experience_level_raw, str):
+        experience_level_list = [experience_level_raw]
+    elif isinstance(experience_level_raw, list):
+        experience_level_list = experience_level_raw
+    else:
+        experience_level_list = []
     
     # Backward compatibility: if 'all' is specified, don't filter
-    if "all" in experience_level:
-        experience_level = []
+    if "all" in experience_level_list:
+        experience_level_list = []
     
     level_filtered = 0
-    if len(experience_level) > 0:
+    if len(experience_level_list) > 0:
         before_level = len(df)
         df = df[df.apply(lambda row: _title_matches_level(
             str(row.get("title", "")) if str(row.get("title", "")) != "nan" else None,
-            experience_level
+            experience_level_list
         ), axis=1)]
         level_filtered = before_level - len(df)
+        if level_filtered > 0:
+            log.info("[%s] Filtered %d jobs by experience level (%s)", label, level_filtered, ", ".join(experience_level_list))
     filtered = location_filtered + level_filtered
 
     conn = get_connection()
-    new, existing = store_jobspy_results(conn, df, s["query"], experience_level)
+    # Pass None if empty list (same as search_jobs)
+    experience_level_for_store = experience_level_list if experience_level_list else None
+    new, existing = store_jobspy_results(conn, df, s["query"], experience_level_for_store)
 
     msg = f"[{label}] {before} results -> {new} new, {existing} dupes"
     if location_filtered:
         msg += f", {location_filtered} filtered (location)"
     if level_filtered:
-        level_str = ", ".join(experience_level) if isinstance(experience_level, list) else str(experience_level)
+        level_str = ", ".join(experience_level_list) if isinstance(experience_level_list, list) else str(experience_level_list)
         msg += f", {level_filtered} filtered (level: {level_str})"
 
     return {"new": new, "existing": existing, "errors": 0, "filtered": filtered, "total": before, "label": label}
@@ -417,24 +441,62 @@ def search_jobs(
     location: str,
     sites: list[str] | None = None,
     remote_only: bool = False,
-    results_per_site: int = 50,
+    results_per_site: int | None = 50,
     hours_old: int = 72,
     proxy: str | None = None,
     country_indeed: str = "netherlands",
+    experience_level: str | list[str] | None = None,
 ) -> dict:
-    """Run a single job search via JobSpy and store results in DB."""
+    """Run a single job search via JobSpy and store results in DB.
+    
+    Args:
+        query: Search query string
+        location: Location string
+        sites: List of sites to search (default: ["indeed", "linkedin"])
+        remote_only: If True, only search for remote jobs
+        results_per_site: Maximum results per site. Set to 0 or None to get all available results.
+        hours_old: Only jobs posted within this many hours
+        proxy: Proxy string (host:port:user:pass or host:port)
+        country_indeed: Country code for Indeed searches
+        experience_level: Filter by experience level(s). Can be None/empty (no filtering),
+                         a single level string, or a list of levels.
+                         Valid levels: 'entry-level', 'senior', 'manager', 'director', 'executive'.
+                         For backward compatibility, 'all' means no filtering.
+    """
     if sites is None:
         sites = ["indeed", "linkedin"]
 
     proxy_config = parse_proxy(proxy) if proxy else None
 
-    log.info("Search: \"%s\" in %s | sites=%s | remote=%s", query, location, sites, remote_only)
+    # Convert experience_level to list if needed
+    if isinstance(experience_level, str):
+        experience_level_list = [experience_level]
+    elif isinstance(experience_level, list):
+        experience_level_list = experience_level
+    else:
+        experience_level_list = []
+    
+    # Backward compatibility: if 'all' is specified, don't filter
+    if "all" in experience_level_list:
+        experience_level_list = []
 
+    log.info("Search: \"%s\" in %s | sites=%s | remote=%s | results=%s | level=%s", 
+             query, location, sites, remote_only, results_info, experience_level_list or "all")
+
+    # If results_per_site is 0 or None, set to a large number to get all results
+    # JobSpy doesn't support unlimited, so we use a large number as a workaround
+    if results_per_site and results_per_site > 0:
+        effective_results = results_per_site
+        results_info = f"{effective_results} per site"
+    else:
+        effective_results = 10000  # Large number to get all available results
+        results_info = "all available"
+    
     kwargs = {
         "site_name": sites,
         "search_term": query,
         "location": location,
-        "results_wanted": results_per_site,
+        "results_wanted": effective_results,
         "hours_old": hours_old,
         "description_format": "markdown",
         "country_indeed": country_indeed,
@@ -454,28 +516,42 @@ def search_jobs(
         df = scrape_jobs(**kwargs)
     except Exception as e:
         log.error("JobSpy search failed: %s", e)
-        return {"error": str(e), "total": 0, "new": 0, "existing": 0}
+        return {"error": str(e), "total": 0, "new": 0, "existing": 0, "filtered": 0}
 
     total = len(df)
     log.info("JobSpy returned %d results", total)
 
     if total == 0:
-        return {"total": 0, "new": 0, "existing": 0}
+        return {"total": 0, "new": 0, "existing": 0, "filtered": 0}
 
     if "site" in df.columns:
         site_counts = df["site"].value_counts()
         for site, count in site_counts.items():
             log.info("  %s: %d", site, count)
 
+    # Filter by experience level before storing
+    level_filtered = 0
+    if len(experience_level_list) > 0:
+        before_level = len(df)
+        df = df[df.apply(lambda row: _title_matches_level(
+            str(row.get("title", "")) if str(row.get("title", "")) != "nan" else None,
+            experience_level_list
+        ), axis=1)]
+        level_filtered = before_level - len(df)
+        if level_filtered > 0:
+            log.info("Filtered %d jobs by experience level (%s)", level_filtered, ", ".join(experience_level_list))
+
     conn = init_db()
-    new, existing = store_jobspy_results(conn, df, query)
+    new, existing = store_jobspy_results(conn, df, query, experience_level_list if experience_level_list else None)
     log.info("Stored: %d new, %d already in DB", new, existing)
+    if level_filtered > 0:
+        log.info("Filtered: %d jobs (experience level)", level_filtered)
 
     db_total = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
     pending = conn.execute("SELECT COUNT(*) FROM jobs WHERE detail_scraped_at IS NULL").fetchone()[0]
     log.info("DB total: %d jobs, %d pending detail scrape", db_total, pending)
 
-    return {"total": total, "new": new, "existing": existing}
+    return {"total": total, "new": new, "existing": existing, "filtered": level_filtered}
 
 
 # -- Full crawl (all queries x all locations) --------------------------------
@@ -485,12 +561,16 @@ def _full_crawl(
     tiers: list[int] | None = None,
     locations: list[str] | None = None,
     sites: list[str] | None = None,
-    results_per_site: int = 100,
+    results_per_site: int | None = 100,
     hours_old: int = 72,
     proxy: str | None = None,
     max_retries: int = 2,
 ) -> dict:
-    """Run all search queries from search config across all locations."""
+    """Run all search queries from search config across all locations.
+    
+    Args:
+        results_per_site: Maximum results per site. Set to 0 or None to get all available results.
+    """
     if sites is None:
         sites = ["indeed", "linkedin"]
 
@@ -517,9 +597,15 @@ def _full_crawl(
 
     proxy_config = parse_proxy(proxy) if proxy else None
 
+    # Determine results info for logging
+    if results_per_site and results_per_site > 0:
+        results_info = f"{results_per_site} per site"
+    else:
+        results_info = "all available"
+    
     log.info("Full crawl: %d search combinations", len(searches))
-    log.info("Sites: %s | Results/site: %d | Hours old: %d",
-             ", ".join(sites), results_per_site, hours_old)
+    log.info("Sites: %s | Results: %s | Hours old: %d",
+             ", ".join(sites), results_info, hours_old)
 
     # Ensure DB schema is ready
     init_db()

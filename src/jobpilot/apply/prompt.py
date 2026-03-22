@@ -591,6 +591,18 @@ def build_prompt(job: dict, tailored_resume: str,
         goal_text = "If something unexpected happens and these instructions don't cover it, figure it out yourself. You are autonomous. Navigate pages, read content, try buttons, explore the site. The goal is always the same: submit the application. Do whatever it takes to reach that goal."
         after_submit_text = '11. After submit: browser_snapshot. Run CAPTCHA DETECT -- submit buttons often trigger invisible CAPTCHAs. If found, solve it (the form will auto-submit once the token clears, or you may need to click Submit again). Then check for new tabs (browser_tabs action: "list"). Switch to newest, close old. Snapshot to confirm submission. Look for "thank you" or "application received".'
 
+    # Must be outside f-string: Python 3.11 forbids backslashes inside {...} expressions.
+    dry_run_checkpoint_step = (
+        "9.5. *** DRY RUN CHECKPOINT ***\n"
+        "   You have filled out all form fields. Before proceeding:\n"
+        "   - Take a browser_snapshot to review all filled fields\n"
+        "   - Verify everything looks correct\n"
+        "   - If you see a Submit/Apply button, DO NOT click it\n"
+        "   - This is your stopping point - proceed to step 10 to output result\n"
+    ) if dry_run else ""
+
+    today_us = datetime.now().strftime("%m/%d/%Y")
+
     prompt = f"""You are an autonomous job application agent. Your ONE mission: get this candidate an interview. You have all the information and tools. Think strategically. Act decisively.{" DO NOT submit - this is a DRY RUN." if dry_run else " Submit the application."}
 
 == JOB ==
@@ -667,7 +679,7 @@ Cover Letter PDF (upload if asked): {cl_upload_path or "N/A"}
    - "Current Job Title" or "Most Recent Title" -> use the title from the TAILORED RESUME summary, NOT whatever the parser guessed.
    - Compare every other field to the APPLICANT PROFILE. Fix mismatches. Fill empty fields.
 9. Answer screening questions using the rules above.
-{"9.5. *** DRY RUN CHECKPOINT ***\n   You have filled out all form fields. Before proceeding:\n   - Take a browser_snapshot to review all filled fields\n   - Verify everything looks correct\n   - If you see a Submit/Apply button, DO NOT click it\n   - This is your stopping point - proceed to step 10 to output result\n" if dry_run else ""}
+{dry_run_checkpoint_step}
 10. {submit_instruction}
 {after_submit_text}
 12. Output your result.
@@ -696,7 +708,7 @@ RESULT:FAILED:reason -- any other failure (brief reason)
 - Dropdown won't fill? browser_click to open it, then browser_click the option.
 - Checkbox won't check via fill_form? Use browser_click on it instead. Snapshot to verify.
 - Phone field with country prefix: just type digits {phone_digits}
-- Date fields: {datetime.now().strftime('%m/%d/%Y')}
+- Date fields: {today_us}
 - Validation errors after submit? Take BOTH snapshot AND screenshot. Snapshot shows text errors, screenshot shows red-highlighted fields. Fix all, retry.
 - Honeypot fields (hidden, "leave blank"): skip them.
 - Format-sensitive fields: read the placeholder text, match it exactly.

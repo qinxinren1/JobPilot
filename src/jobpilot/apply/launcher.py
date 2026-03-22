@@ -142,14 +142,28 @@ def _auto_enrich_and_tailor(url: str, worker_id: int = 0, min_score: int = 7) ->
                 
                 enrich_result = scrape_detail_page(page, url)
                 
-                full_description = enrich_result.get("full_description")
+                raw_desc = enrich_result.get("full_description")
+                full_description = (raw_desc or "").strip()
                 application_url = enrich_result.get("application_url")
                 
                 # Extract title, site, and location
-                title = enrich_result.get("title")
-                site = enrich_result.get("site")
+                title = (enrich_result.get("title") or "").strip() or None
+                site = (enrich_result.get("site") or "").strip() or None
                 location = enrich_result.get("location") or ""
                 
+                if not full_description:
+                    full_description = (
+                        "[No job description could be scraped from this page — "
+                        "the site may require JavaScript or block bots.]\n\n"
+                        f"URL: {url}\nTitle (if detected): {title or 'unknown'}"
+                    )
+                    logger.warning(
+                        f"[worker-{worker_id}] Empty description after enrich, using placeholder: {url[:80]}"
+                    )
+                
+                desc_preview = full_description[:500]
+                title_safe = title or "Unknown"
+                site_safe = site or "Unknown"
                 
                 # Insert or update job in database
                 now = datetime.now(timezone.utc).isoformat()
@@ -162,20 +176,20 @@ def _auto_enrich_and_tailor(url: str, worker_id: int = 0, min_score: int = 7) ->
                             title = ?, site = ?, full_description = ?, application_url = ?,
                             location = ?, detail_scraped_at = ?
                         WHERE url = ?
-                    """, (title, site, full_description, application_url, location, now, job_url))
+                    """, (title_safe, site_safe, full_description, application_url, location, now, job_url))
                 else:
                     # Insert new job
                     conn.execute("""
                         INSERT INTO jobs (url, title, site, description, full_description, 
                                        application_url, location, strategy, discovered_at, detail_scraped_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (url, title, site, full_description[:500], full_description, 
+                    """, (url, title_safe, site_safe, desc_preview, full_description,
                           application_url, location, "manual", now, now))
                     job_url = url
                 
                 conn.commit()
-                logger.info(f"[worker-{worker_id}] Enriched job: {title[:40]} @ {site}")
-                add_event(f"[W{worker_id}] Enriched: {title[:30]} @ {site[:20]}")
+                logger.info(f"[worker-{worker_id}] Enriched job: {title_safe[:40]} @ {site_safe}")
+                add_event(f"[W{worker_id}] Enriched: {title_safe[:30]} @ {site_safe[:20]}")
                 
         except Exception as e:
             logger.exception(f"[worker-{worker_id}] Enrichment failed for {url}")
@@ -262,48 +276,7 @@ body {{ font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; 
 </html>"""
                     found_resume = {"html": html, "pdf_path": None, "source": f"base_resume:{role_category}"}
             
-            # 2. Check BASE_RESUMES_DIR
-            if not found_resume:
-                from jobpilot.config import BASE_RESUMES_DIR
-                personal = profile["personal"]
-                full_name = personal.get("full_name", "")
-                name_safe = "".join(c for c in full_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(" ", "_")
-                base_html = BASE_RESUMES_DIR / f"{name_safe}_{role_category}.html"
-                base_pdf = BASE_RESUMES_DIR / f"{name_safe}_{role_category}.pdf"
-                base_txt = BASE_RESUMES_DIR / f"{name_safe}_{role_category}.txt"
-                if base_html.exists():
-                    found_resume = {"html": base_html.read_text(encoding="utf-8"), "pdf_path": None, "source": f"base_resumes_dir:{role_category}"}
-                elif base_pdf.exists():
-                    found_resume = {"html": None, "pdf_path": base_pdf, "source": f"base_resumes_dir:{role_category}"}
-                elif base_txt.exists():
-                    text = base_txt.read_text(encoding="utf-8")
-                    html = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-@page {{ size: A4; margin: 1in; }}
-body {{ font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #1a1a1a; white-space: pre-wrap; }}
-</style>
-</head>
-<body>
-{text}
-</body>
-</html>"""
-                    found_resume = {"html": html, "pdf_path": None, "source": f"base_resumes_dir:{role_category}"}
-        
-        # 3. Use template from Step 2 (already found during scoring)
-        if not found_resume and matched_template and matched_template.get("file_path"):
-            template_path = Path(matched_template["file_path"])
-            if template_path.suffix == ".html":
-                found_resume = {"html": template_path.read_text(encoding="utf-8"), "pdf_path": None, "source": f"template:{matched_template.get('name', 'unknown')}"}
-            elif template_path.suffix == ".pdf":
-                html_path = template_path.with_suffix(".html")
-                if html_path.exists():
-                    found_resume = {"html": html_path.read_text(encoding="utf-8"), "pdf_path": None, "source": f"template_html:{matched_template.get('name', 'unknown')}"}
-                else:
-                    found_resume = {"html": None, "pdf_path": template_path, "source": f"template_pdf:{matched_template.get('name', 'unknown')}"}
-        
+         
         # Use found resume or generate tailored
         if found_resume:
             if skip_tailor:

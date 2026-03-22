@@ -374,6 +374,16 @@ export interface ResumeTemplate {
   file_type: string
 }
 
+export interface GeneratedResumeResponse {
+  status: string
+  message: string
+  role_category: string
+  role_name: string
+  pdf_path: string
+  html_path: string
+  txt_path: string | null
+}
+
 export const jobsApi = {
   getJobs: async (params?: {
     stage?: string
@@ -394,12 +404,34 @@ export const jobsApi = {
     return response.data
   },
 
-  addLinkedInJob: async (url: string): Promise<{ status: string; message: string; job_url: string; new: boolean }> => {
-    // Use longer timeout for LinkedIn URL parsing (may take up to 2 minutes)
-    const response = await apiClient.post('/api/jobs/add-linkedin', { url }, {
+  addJob: async (url: string, autoScore: boolean = false): Promise<{ 
+    status: string
+    message: string
+    job_url: string
+    new: boolean
+    enriched?: boolean
+    tailored?: boolean
+    fit_score?: number
+  }> => {
+    // Use longer timeout for job URL parsing (may take up to 2 minutes)
+    const response = await apiClient.post('/api/jobs/add', { 
+      url,
+      auto_score: autoScore
+    }, {
       timeout: 120000, // 120 seconds
     })
     return response.data
+  },
+
+  // Deprecated: Use addJob instead
+  addLinkedInJob: async (url: string): Promise<{ status: string; message: string; job_url: string; new: boolean }> => {
+    const result = await jobsApi.addJob(url, false)
+    return {
+      status: result.status,
+      message: result.message,
+      job_url: result.job_url,
+      new: result.new
+    }
   },
 }
 
@@ -460,34 +492,29 @@ export const resumesApi = {
     isDefault: boolean = false,
     profileData?: any,  // Optional filtered profile
     roleCategory?: string  // Optional role category key
-  ): Promise<{ status: string; message: string; resume: ResumeTemplate }> => {
-    const formData = new FormData()
-    formData.append('name', name)
-    if (jobPosition) formData.append('job_position', jobPosition)
-    if (jobType) formData.append('job_type', jobType)
-    formData.append('is_default', isDefault.toString())
-    if (roleCategory) formData.append('role_category', roleCategory)
-    if (profileData) {
-      formData.append('profile_data', JSON.stringify(profileData))
+  ): Promise<GeneratedResumeResponse> => {
+    // Unified backend endpoint (JSON): POST /api/resume/generate
+    // Old endpoints (multipart form) are deprecated.
+    void jobType
+    void isDefault
+
+    if (!roleCategory) {
+      throw new Error('roleCategory is required to generate a resume')
     }
 
-    const response = await apiClient.post('/api/resumes/generate', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await apiClient.post('/api/resume/generate', {
+      role_category: roleCategory,
+      job_position: jobPosition || name || '',
+      profile_data: profileData,
     })
-    return response.data
+
+    return response.data as GeneratedResumeResponse
   },
 }
 
 export interface CoverLetterTemplate {
-  id: number
-  name: string
-  role_category: string | null
+  role_category: string
   content: string
-  created_at: string
-  updated_at: string
-  is_default: boolean
 }
 
 export const coverLetterTemplatesApi = {
@@ -496,41 +523,23 @@ export const coverLetterTemplatesApi = {
     return response.data
   },
 
-  createTemplate: async (
-    name: string,
-    content: string,
-    roleCategory: string = '',
-    isDefault: boolean = false
-  ): Promise<{ status: string; message: string; template: CoverLetterTemplate }> => {
-    const response = await apiClient.post('/api/cover-letters', {
-      name,
+  getTemplate: async (roleCategory: string): Promise<CoverLetterTemplate> => {
+    const response = await apiClient.get(`/api/cover-letters/${encodeURIComponent(roleCategory)}`)
+    return response.data
+  },
+
+  setTemplate: async (
+    roleCategory: string,
+    content: string
+  ): Promise<{ status: string; message: string; role_category: string }> => {
+    const response = await apiClient.put(`/api/cover-letters/${encodeURIComponent(roleCategory)}`, {
       content,
-      role_category: roleCategory,
-      is_default: isDefault,
     })
     return response.data
   },
 
-  updateTemplate: async (
-    templateId: number,
-    updates: {
-      name?: string
-      content?: string
-      role_category?: string
-      is_default?: boolean
-    }
-  ): Promise<{ status: string; message: string; template: CoverLetterTemplate }> => {
-    const response = await apiClient.patch(`/api/cover-letters/${templateId}`, updates)
-    return response.data
-  },
-
-  deleteTemplate: async (templateId: number): Promise<{ status: string; message: string }> => {
-    const response = await apiClient.delete(`/api/cover-letters/${templateId}`)
-    return response.data
-  },
-
-  setDefaultTemplate: async (templateId: number): Promise<{ status: string; message: string }> => {
-    const response = await apiClient.patch(`/api/cover-letters/${templateId}`, { is_default: true })
+  deleteTemplate: async (roleCategory: string): Promise<{ status: string; message: string }> => {
+    const response = await apiClient.delete(`/api/cover-letters/${encodeURIComponent(roleCategory)}`)
     return response.data
   },
 }

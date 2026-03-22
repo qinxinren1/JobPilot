@@ -13,8 +13,8 @@ export default function ApplyTrackerPage() {
   const [minScore, setMinScore] = useState<number | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [linkedinUrl, setLinkedinUrl] = useState('')
-  const [isAddingLinkedIn, setIsAddingLinkedIn] = useState(false)
+  const [jobUrl, setJobUrl] = useState('')
+  const [isAddingJob, setIsAddingJob] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
   const applyConfig = {
     limit: 10,
@@ -30,7 +30,7 @@ export default function ApplyTrackerPage() {
   // Query for all jobs (for global stats, not affected by view)
   const { data: allJobsData } = useQuery({
     queryKey: ['jobs', 'all'],
-    queryFn: () => jobsApi.getJobs({ limit: 200 }),
+    queryFn: () => jobsApi.getJobs({ limit: 0 }),
   })
 
   const { data, isLoading, error } = useQuery({
@@ -42,7 +42,7 @@ export default function ApplyTrackerPage() {
         min_score?: number
         status?: string
         search?: string
-      } = { limit: 200 }
+      } = { limit: 0 }
       
       // Handle status-based views (applied, failed) separately
       if (activeView === 'applied' || activeView === 'failed') {
@@ -149,25 +149,25 @@ export default function ApplyTrackerPage() {
     }
   }
 
-  const handleAddLinkedInJob = async () => {
-    if (!linkedinUrl.trim()) {
-      alert('Please enter a LinkedIn job URL')
+  const handleAddJob = async () => {
+    if (!jobUrl.trim()) {
+      alert('Please enter a job URL')
       return
     }
 
-    setIsAddingLinkedIn(true)
+    setIsAddingJob(true)
     try {
-      const result = await jobsApi.addLinkedInJob(linkedinUrl.trim())
+      const result = await jobsApi.addJob(jobUrl.trim(), false)
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
-      setLinkedinUrl('')
+      setJobUrl('')
       alert(result.message)
     } catch (error) {
       const errorMessage = error instanceof Error 
         ? error.message 
         : (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Unknown error'
-      alert(`Failed to add LinkedIn job: ${errorMessage}`)
+      alert(`Failed to add job: ${errorMessage}`)
     } finally {
-      setIsAddingLinkedIn(false)
+      setIsAddingJob(false)
     }
   }
 
@@ -405,23 +405,23 @@ export default function ApplyTrackerPage() {
               <div className="linkedin-add-container">
                 <input
                   type="text"
-                  placeholder="Paste LinkedIn job URL..."
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="Paste job URL (LinkedIn, Indeed, etc.)..."
+                  value={jobUrl}
+                  onChange={(e) => setJobUrl(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isAddingLinkedIn) {
-                      handleAddLinkedInJob()
+                    if (e.key === 'Enter' && !isAddingJob) {
+                      handleAddJob()
                     }
                   }}
                   className="linkedin-url-input"
-                  disabled={isAddingLinkedIn}
+                  disabled={isAddingJob}
                 />
                 <button
-                  onClick={handleAddLinkedInJob}
-                  disabled={isAddingLinkedIn || !linkedinUrl.trim()}
+                  onClick={handleAddJob}
+                  disabled={isAddingJob || !jobUrl.trim()}
                   className="add-linkedin-button"
                 >
-                  {isAddingLinkedIn ? 'Adding...' : '➕ Add'}
+                  {isAddingJob ? 'Adding...' : '➕ Add'}
                 </button>
               </div>
               <button

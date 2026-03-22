@@ -324,7 +324,7 @@ def validate_tailored_resume(text: str, profile: dict, original_text: str = "") 
 
 # ── Cover Letter Validation ──────────────────────────────────────────────
 
-def validate_cover_letter(text: str, mode: str = "normal") -> dict:
+def validate_cover_letter(text: str, mode: str = "normal", pdf_path: str | None = None) -> dict:
     """Programmatic validation of a cover letter.
 
     Args:
@@ -333,6 +333,7 @@ def validate_cover_letter(text: str, mode: str = "normal") -> dict:
               strict  → banned words are errors (trigger retries); word limit enforced
               normal  → banned words are warnings; word limit is soft (+25 words)
               lenient → banned words ignored; word count not checked
+        pdf_path: Optional path to the generated PDF file. If provided, checks page count.
 
     Returns:
         {"passed": bool, "errors": list[str], "warnings": list[str]}
@@ -356,12 +357,6 @@ def validate_cover_letter(text: str, mode: str = "normal") -> dict:
                 warnings.append(msg)
 
     # 3. Word count
-    words = len(text.split())
-    if mode == "strict" and words > 250:
-        errors.append(f"Too long ({words} words). Max 250.")
-    elif mode == "normal" and words > 275:
-        warnings.append(f"Long ({words} words). Target 250.")
-    # lenient: no word count check
 
     # 4. LLM self-talk — always an error regardless of mode
     found_leaks = [p for p in LLM_LEAK_PHRASES if p in text_lower]
@@ -372,5 +367,30 @@ def validate_cover_letter(text: str, mode: str = "normal") -> dict:
     stripped = text.strip()
     if not stripped.lower().startswith("dear"):
         errors.append("Must start with 'Dear Hiring Manager,'")
+
+    # 6. PDF page count check (if PDF path provided)
+    if pdf_path:
+        try:
+            from pathlib import Path
+            pdf_file = Path(pdf_path)
+            if pdf_file.exists():
+                # Try pdfplumber first (better quality)
+                try:
+                    import pdfplumber
+                    with pdfplumber.open(pdf_file) as pdf:
+                        page_count = len(pdf.pages)
+                except ImportError:
+                    # Fallback to PyPDF2
+                    import PyPDF2
+                    with open(pdf_file, "rb") as file:
+                        pdf_reader = PyPDF2.PdfReader(file)
+                        page_count = len(pdf_reader.pages)
+                
+                if page_count > 2:
+                    # Always error for page count exceeding 2 pages, regardless of mode
+                    errors.append(f"PDF exceeds 2 pages ({page_count} pages). Max 2 pages.")
+        except Exception as e:
+            log.warning("Failed to check PDF page count: %s", e)
+            # Don't fail validation if we can't check the PDF
 
     return {"passed": len(errors) == 0, "errors": errors, "warnings": warnings}

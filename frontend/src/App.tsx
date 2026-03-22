@@ -11,20 +11,22 @@ function App() {
     <BrowserRouter>
       <div className="app">
         <header className="app-header">
-          <h1>JobPilot</h1>
-          <div className="main-tabs">
-            <button
-              className={`main-tab ${activeMainTab === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveMainTab('profile')}
-            >
-              Profile Management
-            </button>
-            <button
-              className={`main-tab ${activeMainTab === 'tracker' ? 'active' : ''}`}
-              onClick={() => setActiveMainTab('tracker')}
-            >
-              Apply Tracker
-            </button>
+          <div className="app-header-left">
+            <div className="main-tabs">
+              <button
+                className={`main-tab ${activeMainTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setActiveMainTab('profile')}
+              >
+                Profile Management
+              </button>
+              <button
+                className={`main-tab ${activeMainTab === 'tracker' ? 'active' : ''}`}
+                onClick={() => setActiveMainTab('tracker')}
+              >
+                Apply Tracker
+              </button>
+            </div>
+            <h1>JobPilot</h1>
           </div>
         </header>
         <main className="app-main">

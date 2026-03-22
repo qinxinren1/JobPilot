@@ -48,7 +48,7 @@ export default function JobConfigForm({ onSave, isSaving }: JobConfigFormProps) 
           location: config.defaults.location || 'Netherlands',
           distance: config.defaults.distance ?? 0,
           hours_old: config.defaults.hours_old ?? 72,
-          results_per_site: config.defaults.results_per_site ?? 50,
+          results_per_site: config.defaults.results_per_site !== undefined ? config.defaults.results_per_site : 50,
           experience_level: Array.isArray(level) ? level : (level ? [level] : []),
         })
       } else if (config.location || config.distance !== undefined) {
@@ -191,13 +191,16 @@ export default function JobConfigForm({ onSave, isSaving }: JobConfigFormProps) 
             <input
               id="results-per-site"
               type="number"
-              min="1"
+              min="0"
               value={defaults.results_per_site}
-              onChange={(e) => setDefaults({ ...defaults, results_per_site: parseInt(e.target.value) || 50 })}
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : parseInt(e.target.value)
+                setDefaults({ ...defaults, results_per_site: isNaN(value) ? 0 : value })
+              }}
               className="job-config-input"
             />
             <div className="job-config-hint">
-              Max results per board per query (default: <span className="example">50</span>)
+              Max results per board per query. Set to <span className="example">0</span> to get all available results (default: <span className="example">50</span>)
             </div>
           </div>
 

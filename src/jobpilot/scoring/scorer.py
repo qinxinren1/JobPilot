@@ -200,36 +200,6 @@ def _find_matching_resume_template(conn, job: dict, profile: dict = None) -> dic
     return None
 
 
-def _extract_text_from_html(html_path: str | Path) -> str:
-    """Extract plain text from HTML resume file.
-    
-    Args:
-        html_path: Path to HTML file
-        
-    Returns:
-        Plain text content extracted from HTML
-    """
-    html_file = Path(html_path)
-    if not html_file.exists():
-        raise FileNotFoundError(f"HTML file not found: {html_path}")
-    
-    html_content = html_file.read_text(encoding="utf-8")
-    
-    # Remove script and style tags
-    html_content = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-    html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-    
-    # Remove HTML tags but keep text content
-    text = re.sub(r'<[^>]+>', ' ', html_content)
-    
-    # Clean up whitespace
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'\n\s*\n', '\n', text)  # Remove multiple blank lines
-    text = text.strip()
-    
-    return text
-
-
 def _parse_score_response(response: str) -> dict:
     """Parse the LLM's score response into structured data.
 
@@ -311,12 +281,19 @@ def score_job(profile: dict, job: dict, conn=None) -> dict:
         template = _find_matching_resume_template(conn, job, profile)
         if template and template.get("file_path"):
             try:
-                resume_text = _extract_text_from_html(template["file_path"])
-                resume_source = f"template:{template.get('name', 'unknown')}"
-                log.debug("Using resume template '%s' for scoring job: %s", 
-                         template.get("name"), job.get("title", "?"))
+                template_path = Path(template["file_path"])
+                # Read txt file (should always exist alongside HTML/PDF)
+                txt_path = template_path.with_suffix(".txt")
+                if txt_path.exists():
+                    resume_text = txt_path.read_text(encoding="utf-8")
+                    resume_source = f"template:{template.get('name', 'unknown')}"
+                    log.debug("Using resume template '%s' for scoring job: %s", 
+                             template.get("name"), job.get("title", "?"))
+                else:
+                    log.warning("TXT file not found for template '%s' at %s. Falling back to profile.", 
+                               template.get("name"), txt_path)
             except Exception as e:
-                log.warning("Failed to read resume template HTML '%s': %s. Falling back to profile.", 
+                log.warning("Failed to read resume template '%s': %s. Falling back to profile.", 
                            template["file_path"], e)
     except Exception as e:
         log.debug("Error finding resume template: %s. Falling back to profile.", e)
