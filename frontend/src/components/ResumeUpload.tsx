@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isAxiosError } from 'axios'
 import { apiClient } from '../api/client'
 import { Profile } from '../api/client'
 import './ResumeUpload.css'
@@ -64,8 +65,13 @@ export default function ResumeUpload({ onDataExtracted, onClose }: ResumeUploadP
       
       alert('Resume uploaded and parsed successfully! The profile has been updated with merged data.')
       onClose()
-    } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Failed to upload resume')
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        const data = err.response?.data as { detail?: string } | undefined
+        setError(data?.detail ?? err.message ?? 'Failed to upload resume')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to upload resume')
+      }
     } finally {
       setUploading(false)
     }

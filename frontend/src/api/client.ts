@@ -348,8 +348,8 @@ export interface PipelineRunRequest {
 export interface PipelineRunResponse {
   status: string
   result: {
-    stages: any[]
-    errors: Record<string, any>
+    stages: unknown[]
+    errors: Record<string, unknown>
     elapsed: number
   }
 }
@@ -490,7 +490,7 @@ export const resumesApi = {
     jobPosition: string = '',
     jobType: string = '',
     isDefault: boolean = false,
-    profileData?: any,  // Optional filtered profile
+    profileData?: Partial<Profile>, // Optional filtered profile
     roleCategory?: string  // Optional role category key
   ): Promise<GeneratedResumeResponse> => {
     // Unified backend endpoint (JSON): POST /api/resume/generate

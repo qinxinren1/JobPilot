@@ -1,9 +1,30 @@
 import { useState, useEffect } from 'react'
-import { ResumeFacts, TargetRole, Experience, Profile, resumesApi, profileApi } from '../../api/client'
+import { isAxiosError } from 'axios'
+import {
+  ResumeFacts,
+  TargetRole,
+  Experience,
+  Profile,
+  resumesApi,
+  profileApi,
+  WorkExperience,
+  ProjectExperience,
+} from '../../api/client'
 import { apiClient } from '../../api/client'
 import { useQueryClient } from '@tanstack/react-query'
 import './SectionForm.css'
 import './ResumeFactsForm.css'
+
+function apiErrorMessage(err: unknown): string {
+  if (isAxiosError(err)) {
+    const data = err.response?.data as { detail?: string } | undefined
+    return data?.detail ?? err.message
+  }
+  return err instanceof Error ? err.message : String(err)
+}
+
+type WorkExperienceRow = WorkExperience & { _id?: string }
+type ProjectExperienceRow = ProjectExperience & { _id?: string }
 
 interface ResumeFactsFormProps {
   data: Partial<ResumeFacts>
@@ -65,9 +86,9 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
     try {
       await profileApi.updateSection('target_roles', updatedTargetRoles)
       queryClient.invalidateQueries({ queryKey: ['profile'] })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to update target role:', error)
-      alert('Failed to update target role: ' + (error.response?.data?.detail || error.message))
+      alert('Failed to update target role: ' + apiErrorMessage(error))
     }
   }
 
@@ -100,9 +121,9 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
       await profileApi.updateSection('target_roles', updatedTargetRoles)
       setExpandedRoles(prev => ({ ...prev, [roleKey]: true }))
       queryClient.invalidateQueries({ queryKey: ['profile'] })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to add target role:', error)
-      alert('Failed to add target role: ' + (error.response?.data?.detail || error.message))
+      alert('Failed to add target role: ' + apiErrorMessage(error))
     }
   }
 
@@ -124,9 +145,9 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
       })
       setPreviewingRoleKey(prev => (prev === roleKey ? null : prev))
       queryClient.invalidateQueries({ queryKey: ['profile'] })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to remove target role:', error)
-      alert('Failed to remove target role: ' + (error.response?.data?.detail || error.message))
+      alert('Failed to remove target role: ' + apiErrorMessage(error))
     }
   }
 
@@ -157,12 +178,12 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
 
   // Build filtered profile for a target role
   const buildFilteredProfile = (role: TargetRole) => {
-    const workExperiences = (experience?.work_experiences || []).filter((exp: any, idx: number) => {
+    const workExperiences = (experience?.work_experiences || []).filter((exp: WorkExperienceRow, idx: number) => {
       const expId = exp._id || idx.toString()
       return role.selected_work_experiences?.includes(expId)
     })
 
-    const projects = (experience?.projects || []).filter((proj: any, idx: number) => {
+    const projects = (experience?.projects || []).filter((proj: ProjectExperienceRow, idx: number) => {
       const projId = proj._id || idx.toString()
       return role.selected_projects?.includes(projId)
     })
@@ -204,9 +225,9 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
 
       setPreviewHtml(response.data.html)
       setPreviewingRoleKey(roleKey)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to generate preview:', error)
-      alert('Failed to generate preview: ' + (error.response?.data?.detail || error.message))
+      alert('Failed to generate preview: ' + apiErrorMessage(error))
     } finally {
       setPreviewLoadingRoleKey(null)
     }
@@ -230,8 +251,8 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
         role.name,
         '',
         false,
-        filteredProfile,
-        roleKey  // role_category
+        filteredProfile as Partial<Profile>,
+        roleKey // role_category
       )
 
       alert(`Resume template "${role.name}" saved successfully!`)
@@ -239,9 +260,9 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
       if (previewingRoleKey === roleKey) {
         await generatePreview(roleKey)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to generate template:', error)
-      alert('Failed to generate template: ' + (error.response?.data?.detail || error.message))
+      alert('Failed to generate template: ' + apiErrorMessage(error))
     } finally {
       setSavingTemplateRoleKey(null)
     }
@@ -354,7 +375,7 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
                       <div className="experience-section">
                         <h5>Work Experiences</h5>
                         <div className="experience-cards">
-                          {workExperiences.map((exp: any, idx: number) => {
+                          {workExperiences.map((exp: WorkExperienceRow, idx: number) => {
                             const expId = exp._id || idx.toString()
                             const isSelected = role.selected_work_experiences?.includes(expId) || false
                             return (
@@ -390,7 +411,7 @@ export default function ResumeFactsForm({ data, onChange: _onChange, experience,
                       <div className="experience-section">
                         <h5>Projects</h5>
                         <div className="experience-cards">
-                          {projects.map((proj: any, idx: number) => {
+                          {projects.map((proj: ProjectExperienceRow, idx: number) => {
                             const projId = proj._id || idx.toString()
                             const isSelected = role.selected_projects?.includes(projId) || false
                             return (

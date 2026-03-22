@@ -36,7 +36,7 @@ export function useFormData<T>(
    * @param field - The field name to update
    * @param value - The new value for the field
    */
-  const handleChange = (field: keyof T, value: any) => {
+  const handleChange = (field: keyof T, value: unknown) => {
     const updated = { ...formData, [field]: value }
     setFormData(updated)
     onChange(updated)

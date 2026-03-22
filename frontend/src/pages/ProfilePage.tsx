@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { profileApi, searchConfigApi, Profile, SearchConfig } from '../api/client'
+import {
+  profileApi,
+  searchConfigApi,
+  Profile,
+  SearchConfig,
+  WorkExperience,
+  ProjectExperience,
+  EducationExperience,
+} from '../api/client'
 import ProfileForm from '../components/ProfileForm'
 import ResumeUpload from '../components/ResumeUpload'
 import './ProfilePage.css'
@@ -23,8 +31,8 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       // Don't show alert, just silently update
     },
-    onError: (error: any) => {
-      alert(`Failed to update profile: ${error.message}`)
+    onError: (error: unknown) => {
+      alert(`Failed to update profile: ${error instanceof Error ? error.message : String(error)}`)
     },
   })
 
@@ -35,8 +43,8 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['initStatus'] })
       alert('Job configuration saved successfully!')
     },
-    onError: (error: any) => {
-      alert(`Failed to save job config: ${error.message}`)
+    onError: (error: unknown) => {
+      alert(`Failed to save job config: ${error instanceof Error ? error.message : String(error)}`)
     },
   })
 
@@ -51,30 +59,38 @@ export default function ProfilePage() {
   const handleDataExtracted = (mergedData: Partial<Profile>) => {
     // Backend already merged the data using LLM, so we can use it directly
     // The merged_data from backend contains all existing + new data, intelligently merged
-    const mergedProfile: Profile = {
+    const uploadExtras = mergedData as Partial<Profile> & {
+      work_experiences?: WorkExperience[]
+      projects?: ProjectExperience[]
+      education?: EducationExperience[]
+    }
+    const mergedProfile = {
       ...data?.profile,
       ...mergedData,
       // Ensure nested objects are properly merged
       personal: { ...data?.profile?.personal, ...mergedData.personal },
-      experience: { 
-        ...data?.profile?.experience, 
+      experience: {
+        ...data?.profile?.experience,
         ...mergedData.experience,
         // Use merged arrays from backend (already intelligently merged)
-        work_experiences: mergedData.experience?.work_experiences || 
-                         mergedData.work_experiences || 
-                         data?.profile?.experience?.work_experiences,
-        projects: mergedData.experience?.projects || 
-                 mergedData.projects || 
-                 data?.profile?.experience?.projects,
-        education: mergedData.experience?.education || 
-                   mergedData.education || 
-                   data?.profile?.experience?.education,
+        work_experiences:
+          mergedData.experience?.work_experiences ||
+          uploadExtras.work_experiences ||
+          data?.profile?.experience?.work_experiences,
+        projects:
+          mergedData.experience?.projects ||
+          uploadExtras.projects ||
+          data?.profile?.experience?.projects,
+        education:
+          mergedData.experience?.education ||
+          uploadExtras.education ||
+          data?.profile?.experience?.education,
       },
-      skills_boundary: { 
-        ...data?.profile?.skills_boundary, 
-        ...mergedData.skills_boundary 
+      skills_boundary: {
+        ...data?.profile?.skills_boundary,
+        ...mergedData.skills_boundary,
       },
-    }
+    } as Profile
     
     // Update profile with merged data (backend already saved it, but we update UI)
     updateMutation.mutate(mergedProfile)

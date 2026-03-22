@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Profile } from '../api/client'
+import { Profile, SearchConfig } from '../api/client'
 import PersonalInfoForm from './sections/PersonalInfoForm'
 import WorkAuthorizationForm from './sections/WorkAuthorizationForm'
 import AvailabilityForm from './sections/AvailabilityForm'
@@ -16,20 +16,22 @@ interface ProfileFormProps {
   profile: Profile
   activeSection: string
   onSave: (profile: Profile) => void
-  onSaveJobConfig?: (config: any) => void
+  onSaveJobConfig?: (config: SearchConfig) => void
   isSaving: boolean
 }
 
 // Deep comparison function to detect changes
-function deepEqual(obj1: any, obj2: any): boolean {
+function deepEqual(obj1: unknown, obj2: unknown): boolean {
   if (obj1 === obj2) return true
   
   if (obj1 == null || obj2 == null) return false
   
   if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return false
   
-  const keys1 = Object.keys(obj1)
-  const keys2 = Object.keys(obj2)
+  const a = obj1 as Record<string, unknown>
+  const b = obj2 as Record<string, unknown>
+  const keys1 = Object.keys(a)
+  const keys2 = Object.keys(b)
   
   if (keys1.length !== keys2.length) return false
   
@@ -37,16 +39,16 @@ function deepEqual(obj1: any, obj2: any): boolean {
     if (!keys2.includes(key)) return false
     
     // Handle arrays
-    if (Array.isArray(obj1[key]) && Array.isArray(obj2[key])) {
-      if (obj1[key].length !== obj2[key].length) return false
-      for (let i = 0; i < obj1[key].length; i++) {
-        if (!deepEqual(obj1[key][i], obj2[key][i])) return false
+    if (Array.isArray(a[key]) && Array.isArray(b[key])) {
+      if (a[key].length !== b[key].length) return false
+      for (let i = 0; i < a[key].length; i++) {
+        if (!deepEqual(a[key][i], b[key][i])) return false
       }
-    } else if (typeof obj1[key] === 'object' && typeof obj2[key] === 'object' && 
-               obj1[key] !== null && obj2[key] !== null &&
-               !Array.isArray(obj1[key]) && !Array.isArray(obj2[key])) {
-      if (!deepEqual(obj1[key], obj2[key])) return false
-    } else if (obj1[key] !== obj2[key]) {
+    } else if (typeof a[key] === 'object' && typeof b[key] === 'object' && 
+               a[key] !== null && b[key] !== null &&
+               !Array.isArray(a[key]) && !Array.isArray(b[key])) {
+      if (!deepEqual(a[key], b[key])) return false
+    } else if (a[key] !== b[key]) {
       return false
     }
   }
@@ -68,7 +70,10 @@ export default function ProfileForm({ profile, activeSection, onSave, onSaveJobC
     return !deepEqual(localProfile, originalProfile)
   }, [localProfile, originalProfile])
 
-  const updateSection = (sectionName: string, sectionData: any) => {
+  const updateSection = <K extends keyof Profile>(
+    sectionName: K,
+    sectionData: Partial<NonNullable<Profile[K]>>
+  ) => {
     setLocalProfile((prev) => ({
       ...prev,
       [sectionName]: sectionData,

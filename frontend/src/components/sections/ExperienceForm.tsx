@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { Experience, WorkExperience, ProjectExperience, EducationExperience, AwardExperience } from '../../api/client'
+import {
+  Experience,
+  WorkExperience,
+  ProjectExperience,
+  EducationExperience,
+  AwardExperience,
+} from '../../api/client'
+
+/** UI rows may carry a stable client-side id for React keys and selection */
+type WorkExperienceRow = WorkExperience & { _id?: string }
+type ProjectExperienceRow = ProjectExperience & { _id?: string }
 import MonthYearPicker from '../MonthYearPicker'
 import './SectionForm.css'
 
@@ -26,7 +36,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
     const projects = formData.projects || []
     
     let needsUpdate = false
-    const updatedExperiences = experiences.map((exp: any) => {
+    const updatedExperiences = experiences.map((exp: WorkExperienceRow) => {
       if (!exp._id) {
         needsUpdate = true
         return { ...exp, _id: `exp_${Date.now()}_${idCounter.current++}` }
@@ -34,7 +44,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
       return exp
     })
     
-    const updatedProjects = projects.map((proj: any) => {
+    const updatedProjects = projects.map((proj: ProjectExperienceRow) => {
       if (!proj._id) {
         needsUpdate = true
         return { ...proj, _id: `proj_${Date.now()}_${idCounter.current++}` }
@@ -60,14 +70,14 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
     // Only update if the change came from outside (not from our own onChange)
     if (!isInternalUpdate.current) {
       // Ensure IDs are preserved when data comes from outside
-      const experiences = (data.work_experiences || []).map((exp: any) => {
+      const experiences = (data.work_experiences || []).map((exp: WorkExperienceRow) => {
         if (!exp._id) {
           return { ...exp, _id: `exp_${Date.now()}_${idCounter.current++}` }
         }
         return exp
       })
       
-      const projects = (data.projects || []).map((proj: any) => {
+      const projects = (data.projects || []).map((proj: ProjectExperienceRow) => {
         if (!proj._id) {
           return { ...proj, _id: `proj_${Date.now()}_${idCounter.current++}` }
         }
@@ -91,7 +101,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
     }, 0)
   }, [data])
 
-  const handleChange = (field: keyof Experience, value: any) => {
+  const handleChange = (field: keyof Experience, value: Experience[keyof Experience]) => {
     isInternalUpdate.current = true
     const updated = { ...formData, [field]: value }
     setFormData(updated)
@@ -100,7 +110,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
 
   // Work Experience handlers
   const addWorkExperience = () => {
-    const newExp: any = {
+    const newExp: WorkExperienceRow = {
       company: '',
       title: '',
       start_date: '',
@@ -113,7 +123,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
     handleChange('work_experiences', [...experiences, newExp])
   }
 
-  const updateWorkExperience = (index: number, field: keyof WorkExperience, value: any) => {
+  const updateWorkExperience = (index: number, field: keyof WorkExperience, value: WorkExperience[keyof WorkExperience]) => {
     const experiences = [...(formData.work_experiences || [])]
     const currentExp = experiences[index] || { company: '', title: '', start_date: '', end_date: '', current: false, bullets: [] }
     experiences[index] = { ...currentExp, [field]: value }
@@ -199,7 +209,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
 
   // Project handlers
   const addProject = () => {
-    const newProject: any = {
+    const newProject: ProjectExperienceRow = {
       name: '',
       tech_stack: [],
       start_date: '',
@@ -212,7 +222,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
     handleChange('projects', [...projects, newProject])
   }
 
-  const updateProject = (index: number, field: keyof ProjectExperience, value: any) => {
+  const updateProject = (index: number, field: keyof ProjectExperience, value: ProjectExperience[keyof ProjectExperience]) => {
     const projects = [...(formData.projects || [])]
     const currentProject = projects[index] || { name: '', tech_stack: [], start_date: '', end_date: '', current: false, bullets: [] }
     projects[index] = { ...currentProject, [field]: value }
@@ -289,7 +299,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
     handleChange('education', [...education, newEdu])
   }
 
-  const updateEducation = (index: number, field: keyof EducationExperience, value: any) => {
+  const updateEducation = (index: number, field: keyof EducationExperience, value: EducationExperience[keyof EducationExperience]) => {
     const education = [...(formData.education || [])]
     education[index] = { ...education[index], [field]: value }
     handleChange('education', education)
@@ -310,7 +320,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
     handleChange('awards', [...awards, newAward])
   }
 
-  const updateAward = (index: number, field: keyof AwardExperience, value: any) => {
+  const updateAward = (index: number, field: keyof AwardExperience, value: AwardExperience[keyof AwardExperience]) => {
     const awards = [...(formData.awards || [])]
     awards[index] = { ...awards[index], [field]: value }
     handleChange('awards', awards)
@@ -423,7 +433,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
       {/* Work Experience Tab */}
       {activeTab === 'work' && (
         <div className="experience-list">
-          {(formData.work_experiences || []).map((exp: any, index) => (
+          {(formData.work_experiences || []).map((exp: WorkExperienceRow, index) => (
             <div key={exp._id || index} className="experience-item">
               <div className="experience-item-header">
                 <h4>Work Experience #{index + 1}</h4>
@@ -590,7 +600,7 @@ export default function ExperienceForm({ data, onChange }: ExperienceFormProps) 
       {/* Projects Tab */}
       {activeTab === 'projects' && (
         <div className="experience-list">
-          {(formData.projects || []).map((project: any, index) => (
+          {(formData.projects || []).map((project: ProjectExperienceRow, index) => (
             <div key={project._id || index} className="experience-item">
               <div className="experience-item-header">
                 <h4>Project #{index + 1}</h4>
