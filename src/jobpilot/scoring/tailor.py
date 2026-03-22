@@ -21,10 +21,8 @@ from jobpilot.database import get_connection, get_jobs_by_stage
 from jobpilot.llm import get_client
 from jobpilot.scoring.validator import (
     BANNED_WORDS,
-    FABRICATION_WATCHLIST,
     sanitize_text,
     validate_json_fields,
-    validate_tailored_resume,
 )
 
 log = logging.getLogger(__name__)
@@ -216,6 +214,7 @@ BULLETS: Strong verb + what you built + quantified impact. Vary verbs (Built, De
 - Do NOT invent work, companies, degrees, or certifications
 - Do NOT change real numbers ({metrics_str})
 - Preserved companies: {companies_str} -- names stay as-is
+- Preserved projects: {projects_str} -- names stay as-is
 - Preserved schools: {schools_str} -- names stay as-is
 - Preserved awards: {awards_str} -- awards section will be automatically populated from profile, do NOT modify or generate awards
 - Must fit 1 page.
@@ -709,7 +708,6 @@ def _convert_tailored_data_to_resume_props(data: dict, profile: dict) -> dict:
         convert_skills_to_resume_format,
         extract_handle_from_url,
         format_location,
-        format_date_for_resume,
     )
     
     personal = profile.get("personal", {})

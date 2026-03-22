@@ -5,11 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-import yaml
 from pathlib import Path
 from typing import Any
-
-log = logging.getLogger(__name__)
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,8 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from jobpilot.config import (
-    APP_DIR, PROFILE_PATH, RESUME_PATH, RESUME_PDF_PATH, 
-    SEARCH_CONFIG_PATH, BASE_RESUMES_DIR, BASE_COVER_LETTERS_DIR, ensure_dirs, load_env
+    APP_DIR, PROFILE_PATH, RESUME_PATH, RESUME_PDF_PATH,
+    SEARCH_CONFIG_PATH, BASE_COVER_LETTERS_DIR, ensure_dirs, load_env,
 )
 from jobpilot.resume.parser import (
     extract_text_from_pdf,
@@ -26,7 +23,6 @@ from jobpilot.resume.parser import (
     merge_resume_data_with_llm,
 )
 from jobpilot.scoring.utils import (
-    generate_resume_template_filename,
     save_base_resume_txt,
 )
 from jobpilot.web.utils import (
@@ -34,9 +30,9 @@ from jobpilot.web.utils import (
     load_profile_safe,
     validate_file_type,
     sync_search_config_if_needed,
-    unset_all_resume_defaults,
-    RESUME_TEMPLATE_FIELDS,
 )
+
+log = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -819,7 +815,7 @@ async def get_jobs(
     Returns:
         List of job dictionaries.
     """
-    from jobpilot.database import get_connection, get_jobs_by_stage, init_db
+    from jobpilot.database import get_jobs_by_stage, init_db
     
     try:
         # Ensure database is initialized
@@ -912,7 +908,7 @@ async def delete_job(job_url: str):
     Returns:
         Success message.
     """
-    from jobpilot.database import get_connection, init_db
+    from jobpilot.database import init_db
     
     try:
         conn = init_db()
@@ -950,7 +946,7 @@ async def delete_all_remote_jobs():
     Returns:
         Success message with count of deleted jobs.
     """
-    from jobpilot.database import get_connection, init_db
+    from jobpilot.database import init_db
     
     try:
         conn = init_db()
@@ -960,7 +956,7 @@ async def delete_all_remote_jobs():
         remote_keywords = ["remote", "anywhere", "work from home", "wfh", "distributed"]
         
         # Build SQL query to match any remote keyword
-        conditions = " OR ".join([f"LOWER(location) LIKE ?" for _ in remote_keywords])
+        conditions = " OR ".join(["LOWER(location) LIKE ?" for _ in remote_keywords])
         params = [f"%{kw}%" for kw in remote_keywords]
         
         # First, count how many will be deleted
@@ -1270,7 +1266,6 @@ async def start_auto_apply(request: dict[str, Any]):
     try:
         from jobpilot.apply.launcher import main as apply_main
         import asyncio
-        from concurrent.futures import ThreadPoolExecutor
         
         # Extract parameters
         limit = request.get("limit", 1)

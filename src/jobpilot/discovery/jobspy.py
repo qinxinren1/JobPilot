@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from jobspy import scrape_jobs
 
 from jobpilot import config
-from jobpilot.database import get_connection, init_db, store_jobs
+from jobpilot.database import get_connection, init_db
 
 log = logging.getLogger(__name__)
 
@@ -369,7 +369,7 @@ def _run_one_search(
         log.info("[%s] LinkedIn full description enabled (may be slow)", label)
     
     try:
-        log.info("[%s] Waiting for sites to complete...", label)
+        log.info("[%s] Waiting for sites to complete... (results=%s)", label, results_info)
         df = _scrape_with_retry(kwargs, max_retries=max_retries)
         log.info("[%s] All sites completed: %d results", label, len(df))
         if "site" in df.columns and len(df) > 0:
@@ -480,9 +480,6 @@ def search_jobs(
     if "all" in experience_level_list:
         experience_level_list = []
 
-    log.info("Search: \"%s\" in %s | sites=%s | remote=%s | results=%s | level=%s", 
-             query, location, sites, remote_only, results_info, experience_level_list or "all")
-
     # If results_per_site is 0 or None, set to a large number to get all results
     # JobSpy doesn't support unlimited, so we use a large number as a workaround
     if results_per_site and results_per_site > 0:
@@ -491,7 +488,17 @@ def search_jobs(
     else:
         effective_results = 10000  # Large number to get all available results
         results_info = "all available"
-    
+
+    log.info(
+        'Search: "%s" in %s | sites=%s | remote=%s | results=%s | level=%s',
+        query,
+        location,
+        sites,
+        remote_only,
+        results_info,
+        experience_level_list or "all",
+    )
+
     kwargs = {
         "site_name": sites,
         "search_term": query,

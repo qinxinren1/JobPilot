@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException, UploadFile
 
-from jobpilot.config import PROFILE_PATH, SEARCH_CONFIG_PATH, load_profile
+from jobpilot.config import PROFILE_PATH, load_profile
 
 log = logging.getLogger(__name__)
 

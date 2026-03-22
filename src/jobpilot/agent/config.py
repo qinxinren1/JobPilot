@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import Any
 
 # All files in ~/.jobpilot/
 APP_DIR = Path.home() / ".jobpilot"

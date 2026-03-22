@@ -12,11 +12,8 @@ from fastmcp import FastMCP
 from playwright.sync_api import sync_playwright
 
 from jobpilot.agent.config import (
-    load_results, save_result,
-    load_profile, ensure_agent_dirs
+    load_results, load_profile, ensure_agent_dirs
 )
-from jobpilot.agent.ats_detector import detect_ats_type
-from jobpilot.agent.apply_agent import run_job_application
 from jobpilot.database import get_connection, init_db, get_job_stage
 from jobpilot.enrichment.detail import scrape_detail_page
 from jobpilot.scoring.scorer import score_job
@@ -116,7 +113,7 @@ def run_agent_batch(
         
         return {
             "status": "success",
-            "message": f"Processed jobs from database",
+            "message": "Processed jobs from database",
             "recent_results": recent_results,
         }
     except Exception as e:
@@ -383,7 +380,7 @@ def add_job(
         full_description = existing_dict.get("full_description")
         application_url = existing_dict.get("application_url")
         
-        logger.info(f"Job already enriched, skipping enrichment step")
+        logger.info("Job already enriched, skipping enrichment step")
         result["enrich"] = {
             "status": "skipped",
             "full_description": full_description is not None,
@@ -392,7 +389,7 @@ def add_job(
         }
     else:
         # Need to enrich (job doesn't exist or not fully enriched)
-        logger.info(f"Job needs enrichment, running enrichment")
+        logger.info("Job needs enrichment, running enrichment")
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
@@ -576,7 +573,6 @@ def add_job(
                 
                 # Save tailored resume (same logic as tailor.py)
                 TAILORED_DIR.mkdir(parents=True, exist_ok=True)
-                from pathlib import Path
                 import re
                 
                 # Generate filename from job title

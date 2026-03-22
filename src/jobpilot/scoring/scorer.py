@@ -8,7 +8,6 @@ If resume templates are available, uses the best matching template's HTML
 instead of generating from profile.
 """
 
-import json
 import logging
 import re
 import time

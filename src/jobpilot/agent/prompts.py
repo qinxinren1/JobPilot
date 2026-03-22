@@ -10,10 +10,9 @@ from datetime import datetime
 from pathlib import Path
 
 from jobpilot.agent.config import (
-    load_profile, PROFILE_PATH, TAILORED_DIR, COVER_LETTER_DIR,
-    APPLY_WORKER_DIR, BASE_RESUMES_DIR
+    load_profile, APPLY_WORKER_DIR, BASE_RESUMES_DIR
 )
-from jobpilot.agent.ats_detector import get_ats_specific_instructions, detect_ats_type
+from jobpilot.agent.ats_detector import get_ats_specific_instructions
 
 
 def _build_profile_summary(profile: dict) -> str:

@@ -5,7 +5,6 @@ by analyzing URL patterns and page characteristics.
 """
 
 import re
-from typing import Optional
 
 
 def detect_ats_type(url: str, page_content: str = "", dom_selectors: list[str] = None) -> str:

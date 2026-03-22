@@ -203,7 +203,7 @@ def apply(
             raise typer.Exit(code=1)
 
     if gen:
-        from jobpilot.apply.launcher import gen_prompt, BASE_CDP_PORT
+        from jobpilot.apply.launcher import gen_prompt
         target = url or ""
         if not target:
             console.print("[red]--gen requires --url to specify which job.[/red]")
@@ -214,7 +214,7 @@ def apply(
             raise typer.Exit(code=1)
         mcp_path = _profile_path.parent / ".mcp-apply-0.json"
         console.print(f"[green]Wrote prompt to:[/green] {prompt_file}")
-        console.print(f"\n[bold]Run manually:[/bold]")
+        console.print("\n[bold]Run manually:[/bold]")
         console.print(
             f"  claude --model {model} -p "
             f"--mcp-config {mcp_path} "
@@ -333,9 +333,9 @@ def web(
     """Start the web interface (FastAPI + React)."""
     import uvicorn
     
-    console.print(f"[bold green]Starting JobPilot Web Interface[/bold green]")
+    console.print("[bold green]Starting JobPilot Web Interface[/bold green]")
     console.print(f"  Backend: http://{host}:{port}")
-    console.print(f"  Frontend: http://localhost:3000 (if running)")
+    console.print("  Frontend: http://localhost:3000 (if running)")
     console.print(f"  API Docs: http://{host}:{port}/docs")
     console.print()
     console.print("[dim]Press Ctrl+C to stop[/dim]")

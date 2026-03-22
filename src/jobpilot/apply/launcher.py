@@ -26,7 +26,7 @@ from rich.live import Live
 
 from jobpilot import config
 from jobpilot.database import get_connection
-from jobpilot.apply import chrome, dashboard, prompt as prompt_mod
+from jobpilot.apply import prompt as prompt_mod
 from jobpilot.config import TAILORED_DIR, load_profile
 from jobpilot.apply.chrome import (
     launch_chrome, cleanup_worker, kill_all_chrome,
@@ -198,20 +198,15 @@ def _auto_enrich_and_tailor(url: str, worker_id: int = 0, min_score: int = 7) ->
     else:
         logger.info(f"[worker-{worker_id}] Job already enriched, skipping enrichment step")
     
-    # Step 2: Score the job (also find template for Step 3)
+    # Step 2: Score the job
     profile = load_profile()
-    matched_template = None
     try:
         job_row = conn.execute(
             "SELECT url, title, site, location, full_description FROM jobs WHERE url = ?",
             (job_url,)
         ).fetchone()
         job_dict = dict(job_row)
-        
-        # Find template (used by score_job and will be used by Step 3)
-        from jobpilot.scoring.scorer import _find_matching_resume_template
-        matched_template = _find_matching_resume_template(conn, job_dict, profile)
-        
+
         score_result = score_job(profile, job_dict, conn)
         fit_score = score_result.get("score", 0)
         resume_score = score_result.get("resume_score", 0)
@@ -441,7 +436,7 @@ def acquire_job(target_url: str | None = None, min_score: int = 7,
                 params.extend(blocked_sites)
             url_clauses = ""
             if blocked_patterns:
-                url_clauses = " ".join(f"AND url NOT LIKE ?" for _ in blocked_patterns)
+                url_clauses = " ".join("AND url NOT LIKE ?" for _ in blocked_patterns)
                 params.extend(blocked_patterns)
             row = conn.execute(f"""
                 SELECT url, title, site, application_url, tailored_resume_path,

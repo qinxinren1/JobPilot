@@ -22,9 +22,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
-from jobpilot import config
-from jobpilot.config import DB_PATH
-from jobpilot.database import get_connection, init_db, ensure_columns
+from jobpilot.database import init_db
 from jobpilot.llm import get_client
 
 log = logging.getLogger(__name__)

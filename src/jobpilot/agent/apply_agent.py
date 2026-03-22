@@ -19,7 +19,7 @@ from typing import Optional
 from jobpilot.agent.config import (
     ensure_agent_dirs, save_result,
     load_settings, CHROME_WORKER_DIR, APPLY_WORKER_DIR, AGENT_LOGS_DIR,
-    PROFILE_PATH, TAILORED_DIR
+    TAILORED_DIR
 )
 from jobpilot.agent.prompts import build_prompt
 from jobpilot.agent.ats_detector import detect_ats_type, is_manual_ats
@@ -392,7 +392,7 @@ def run_agent(
         params.extend(blocked_sites)
     url_clauses = ""
     if blocked_patterns:
-        url_clauses = " ".join(f"AND url NOT LIKE ?" for _ in blocked_patterns)
+        url_clauses = " ".join("AND url NOT LIKE ?" for _ in blocked_patterns)
         params.extend(blocked_patterns)
     
     if target_url:

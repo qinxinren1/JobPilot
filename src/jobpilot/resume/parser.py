@@ -158,8 +158,6 @@ def merge_resume_data_with_llm(existing_profile: dict, new_data: dict) -> dict:
     Returns:
         Merged profile data.
     """
-    from jobpilot.llm import get_client
-    import json
     
     merged = existing_profile.copy() if existing_profile else {}
     
@@ -517,7 +515,6 @@ Format: [{{"school": "...", "degree": "...", "field": "...", "start_date": "..."
 
 def _sort_experiences_by_date(experiences: list[dict]) -> list[dict]:
     """Sort work experiences by start date (most recent first)."""
-    import re
     
     def get_sort_key(exp: dict) -> tuple:
         start_date = exp.get("start_date", "")
@@ -534,7 +531,7 @@ def _sort_experiences_by_date(experiences: list[dict]) -> list[dict]:
                 elif part.isdigit() and len(part) <= 2:
                     month = int(part)
             return (-year, -month, 0)  # Negative for descending order
-        except:
+        except Exception:
             return (0, 0, 0)
     
     return sorted(experiences, key=get_sort_key)

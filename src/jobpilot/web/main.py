@@ -1,7 +1,6 @@
 """Main entry point for FastAPI web server."""
 
 import uvicorn
-from jobpilot.web.api import app
 
 if __name__ == "__main__":
     uvicorn.run(
